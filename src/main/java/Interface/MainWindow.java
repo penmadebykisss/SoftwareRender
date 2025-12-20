@@ -40,6 +40,7 @@ public class MainWindow {
     private Label modelInfoLabel;
     private Label renderModeLabel;
     private Label cameraLabel;
+    private Label cursorLabel;
 
     public MainWindow(Stage stage) {
         this.stage = stage;
@@ -79,6 +80,7 @@ public class MainWindow {
         MenuItem saveItem = new MenuItem("Сохранить модель");
         MenuItem saveAsItem = new MenuItem("Сохранить как");
         MenuItem exitItem = new MenuItem("Выход");
+
 
         openItem.setOnAction(e -> openModel());
         saveItem.setOnAction(e -> saveModel());
@@ -317,12 +319,7 @@ public class MainWindow {
         modelInfoLabel = new Label("Модель: не загружена");
         renderModeLabel = new Label("Режим: Wireframe/Texture/Lighting");
         cameraLabel = new Label("Камера: Default");
-        Label cursorLabel = new Label("Координаты: X:0, Y:0");
-
-        modelInfoLabel.setStyle("-fx-text-fill: white;");
-        renderModeLabel.setStyle("-fx-text-fill: white;");
-        cameraLabel.setStyle("-fx-text-fill: white;");
-        cursorLabel.setStyle("-fx-text-fill: white;");
+        cursorLabel = new Label("Координаты: X:0, Y:0");
 
         // Добавление отслеживания курсора
         viewport.setOnMouseMoved(e -> {
@@ -357,18 +354,78 @@ public class MainWindow {
             // Темная тема
             root.setStyle("-fx-background-color: #1e1e1e;");
             menuBar.setStyle("-fx-background-color: #2d2d2d;");
+            for (Menu menu : menuBar.getMenus()) {
+                menu.setStyle("-fx-text-fill: white;");
+            }
             toolBar.setStyle("-fx-background-color: #2d2d2d;");
+            toolBar.getItems().forEach(item -> {
+                if (item instanceof Button) {
+                    item.setStyle("-fx-text-fill: white; -fx-background-color: #3c3c3c;");
+                } else if (item instanceof ComboBox) {
+                    item.setStyle("-fx-background-color: #3c3c3c; -fx-text-fill: white;");
+                }
+            });
             sidebar.setStyle("-fx-background-color: #252526;");
             viewport.setStyle("-fx-background-color: #2b2b2b;");
             statusBar.setStyle("-fx-background-color: #3c3c3c;");
 
             // Стили для текста
-            scene.getRoot().setStyle("-fx-text-fill: white;");
+            modelInfoLabel.setStyle("-fx-text-fill: white;");
+            renderModeLabel.setStyle("-fx-text-fill: white;");
+            cameraLabel.setStyle("-fx-text-fill: white;");
+            cursorLabel.setStyle("-fx-text-fill: white;");
+
+            // CSS для темной темы
+            scene.getStylesheets().clear();
+            String css =
+                    ".root { -fx-background-color: #1e1e1e; } " +
+                            ".menu-bar { -fx-background-color: #2d2d2d; } " +
+                            ".menu-bar .label { -fx-text-fill: white; } " +
+                            ".menu-bar .menu .label { -fx-text-fill: white; } " +
+                            ".menu-item { -fx-background-color: #2d2d2d; } " +
+                            ".menu-item .label { -fx-text-fill: white; } " +
+                            ".menu-item:focused { -fx-background-color: #3c3c3c; } " +
+                            ".menu-item:hover { -fx-background-color: #3c3c3c; } " +
+                            ".context-menu { -fx-background-color: #2d2d2d; } " +
+                            ".check-menu-item { -fx-background-color: #2d2d2d; } " +
+                            ".check-menu-item .label { -fx-text-fill: white; } " +
+                            ".separator .line { -fx-border-color: #4c4c4c; } " +
+                            ".button { -fx-background-color: #3c3c3c; -fx-text-fill: white; } " +
+                            ".button:hover { -fx-background-color: #4c4c4c; } " +
+                            ".text-field { -fx-background-color: #3c3c3c; -fx-text-fill: white; -fx-prompt-text-fill: #888888; } " +
+                            ".combo-box { -fx-background-color: #3c3c3c; } " +
+                            ".combo-box .list-cell { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
+                            ".combo-box-popup .list-view { -fx-background-color: #2d2d2d; } " +
+                            ".combo-box .arrow-button { -fx-background-color: #3c3c3c; } " +
+                            ".combo-box .text-input { -fx-text-fill: white; } " +
+                            ".combo-box:editable .text-field { -fx-text-fill: white; } " +
+                            ".titled-pane { -fx-text-fill: white; -fx-background-color: #252526; } " +
+                            ".titled-pane > .title { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
+                            ".titled-pane > .content { -fx-background-color: #252526; } " +
+                            ".label { -fx-text-fill: white; } " +
+                            ".check-box { -fx-text-fill: white; } " +
+                            ".check-box .box { -fx-background-color: #3c3c3c; } " +
+                            ".slider { -fx-text-fill: white; } " +
+                            ".scroll-pane { -fx-background-color: #252526; } " +
+                            ".scroll-pane > .viewport { -fx-background-color: #252526; }";
+
+            scene.getStylesheets().add("data:text/css;base64," +
+                    java.util.Base64.getEncoder().encodeToString(css.getBytes()));
         } else {
             // Светлая тема
             root.setStyle("-fx-background-color: #f0f0f0;");
             menuBar.setStyle("-fx-background-color: #e0e0e0;");
+            for (Menu menu : menuBar.getMenus()) {
+                menu.setStyle("-fx-text-fill: black;");
+            }
             toolBar.setStyle("-fx-background-color: #e0e0e0;");
+            toolBar.getItems().forEach(item -> {
+                if (item instanceof Button) {
+                    item.setStyle("-fx-text-fill: black; -fx-background-color: #d0d0d0;");
+                } else if (item instanceof ComboBox) {
+                    item.setStyle("-fx-background-color: #d0d0d0; -fx-text-fill: black;");
+                }
+            });
             sidebar.setStyle("-fx-background-color: #f5f5f5;");
             viewport.setStyle("-fx-background-color: #d0d0d0;");
             statusBar.setStyle("-fx-background-color: #c0c0c0;");
@@ -377,8 +434,44 @@ public class MainWindow {
             modelInfoLabel.setStyle("-fx-text-fill: black;");
             renderModeLabel.setStyle("-fx-text-fill: black;");
             cameraLabel.setStyle("-fx-text-fill: black;");
+            cursorLabel.setStyle("-fx-text-fill: black;");
 
-            scene.getRoot().setStyle("-fx-text-fill: black;");
+            // CSS для светлой темы
+            scene.getStylesheets().clear();
+            String css =
+                    ".root { -fx-background-color: #f0f0f0; } " +
+                            ".menu-bar { -fx-background-color: #e0e0e0; } " +
+                            ".menu-bar .label { -fx-text-fill: black; } " +
+                            ".menu-bar .menu .label { -fx-text-fill: black; } " +
+                            ".menu-item { -fx-background-color: #f0f0f0; } " +
+                            ".menu-item .label { -fx-text-fill: black; } " +
+                            ".menu-item:focused { -fx-background-color: #e0e0e0; } " +
+                            ".menu-item:hover { -fx-background-color: #e0e0e0; } " +
+                            ".context-menu { -fx-background-color: #f0f0f0; } " +
+                            ".check-menu-item { -fx-background-color: #f0f0f0; } " +
+                            ".check-menu-item .label { -fx-text-fill: black; } " +
+                            ".separator .line { -fx-border-color: #c0c0c0; } " +
+                            ".button { -fx-background-color: #d0d0d0; -fx-text-fill: black; } " +
+                            ".button:hover { -fx-background-color: #c0c0c0; } " +
+                            ".text-field { -fx-background-color: white; -fx-text-fill: black; } " +
+                            ".combo-box { -fx-background-color: #d0d0d0; } " +
+                            ".combo-box .list-cell { -fx-background-color: #f0f0f0; -fx-text-fill: black; } " +
+                            ".combo-box-popup .list-view { -fx-background-color: #f0f0f0; } " +
+                            ".combo-box .arrow-button { -fx-background-color: #d0d0d0; } " +
+                            ".combo-box .text-input { -fx-text-fill: black; } " +
+                            ".combo-box:editable .text-field { -fx-text-fill: black; } " +
+                            ".titled-pane { -fx-text-fill: black; -fx-background-color: #f5f5f5; } " +
+                            ".titled-pane > .title { -fx-background-color: #e0e0e0; -fx-text-fill: black; } " +
+                            ".titled-pane > .content { -fx-background-color: #f5f5f5; } " +
+                            ".label { -fx-text-fill: black; } " +
+                            ".check-box { -fx-text-fill: black; } " +
+                            ".check-box .box { -fx-background-color: white; } " +
+                            ".slider { -fx-text-fill: black; } " +
+                            ".scroll-pane { -fx-background-color: #f5f5f5; } " +
+                            ".scroll-pane > .viewport { -fx-background-color: #f5f5f5; }";
+
+            scene.getStylesheets().add("data:text/css;base64," +
+                    java.util.Base64.getEncoder().encodeToString(css.getBytes()));
         }
     }
 

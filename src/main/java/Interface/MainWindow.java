@@ -1,16 +1,21 @@
 package Interface;
 
+import Interface.model.Model;
+import Interface.objreader.ObjReader;
+import Interface.objreader.ObjReaderException;
+import Interface.objwriter.ObjWriter;
+import Interface.objwriter.ObjWriterException;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 public class MainWindow {
     private Stage stage;
@@ -25,16 +30,16 @@ public class MainWindow {
     private Pane viewport;
     private HBox statusBar;
 
-    // Режимы отрисовки
-    private CheckBox wireframeCheckBox;
-    private CheckBox textureCheckBox;
-    private CheckBox lightingCheckBox;
-    private CheckBox zBufferCheckBox;
+    // Управление моделями
+    private ModelManager modelManager;
 
     // Поля трансформации
     private TextField translateX, translateY, translateZ;
     private TextField rotateX, rotateY, rotateZ;
     private TextField scaleX, scaleY, scaleZ;
+
+    // ComboBox для списка моделей
+    private ComboBox<ModelManager.ModelEntry> toolbarModelList;
 
     // Статус бар элементы
     private Label modelInfoLabel;
@@ -42,8 +47,11 @@ public class MainWindow {
     private Label cameraLabel;
     private Label cursorLabel;
 
+    private File lastSavedFile;
+
     public MainWindow(Stage stage) {
         this.stage = stage;
+        this.modelManager = new ModelManager();
         initUI();
     }
 
@@ -80,7 +88,6 @@ public class MainWindow {
         MenuItem saveItem = new MenuItem("Сохранить модель");
         MenuItem saveAsItem = new MenuItem("Сохранить как");
         MenuItem exitItem = new MenuItem("Выход");
-
 
         openItem.setOnAction(e -> openModel());
         saveItem.setOnAction(e -> saveModel());
@@ -127,20 +134,30 @@ public class MainWindow {
 
         // Кнопки управления сценой
         Button addModelBtn = new Button("Добавить модель");
+        /* Кнопка "добавить модель" и кнопка "открыть модель" делают одно и то же,
+        так что эту можно удалить либо оставить чтобы не нужно было каждый раз открывать меню "файл"*/
         Button removeModelBtn = new Button("Удалить модель");
-        ComboBox<String> modelList = new ComboBox<>();
-        modelList.setPromptText("Список моделей");
-        modelList.setPrefWidth(150);
+        toolbarModelList = new ComboBox<>();
+        toolbarModelList.setPromptText("Список моделей");
+        toolbarModelList.setPrefWidth(150);
         Button clearSceneBtn = new Button("Очистить сцену");
 
-        addModelBtn.setOnAction(e -> addModel());
-        removeModelBtn.setOnAction(e -> removeModel());
+        addModelBtn.setOnAction(e -> openModel());
+        removeModelBtn.setOnAction(e -> removeSelectedModel());
         clearSceneBtn.setOnAction(e -> clearScene());
+
+        toolbarModelList.setOnAction(e -> {
+            ModelManager.ModelEntry selected = toolbarModelList.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                modelManager.setSelectedModel(selected.getId());
+                updateStatusBar();
+            }
+        });
 
         toolBar.getItems().addAll(
                 addModelBtn,
                 removeModelBtn,
-                modelList,
+                toolbarModelList,
                 clearSceneBtn,
                 new Separator()
         );
@@ -309,6 +326,11 @@ public class MainWindow {
         );
 
         viewport.getChildren().add(infoLabel);
+
+        // Добавление отслеживания курсора
+        viewport.setOnMouseMoved(e -> {
+            cursorLabel.setText(String.format("Координаты: X:%.0f, Y:%.0f", e.getX(), e.getY()));
+        });
     }
 
     private void createStatusBar() {
@@ -320,11 +342,6 @@ public class MainWindow {
         renderModeLabel = new Label("Режим: Wireframe/Texture/Lighting");
         cameraLabel = new Label("Камера: Default");
         cursorLabel = new Label("Координаты: X:0, Y:0");
-
-        // Добавление отслеживания курсора
-        viewport.setOnMouseMoved(e -> {
-            cursorLabel.setText(String.format("Координаты: X:%.0f, Y:%.0f", e.getX(), e.getY()));
-        });
 
         Region spacer1 = new Region();
         Region spacer2 = new Region();
@@ -369,13 +386,11 @@ public class MainWindow {
             viewport.setStyle("-fx-background-color: #2b2b2b;");
             statusBar.setStyle("-fx-background-color: #3c3c3c;");
 
-            // Стили для текста
             modelInfoLabel.setStyle("-fx-text-fill: white;");
             renderModeLabel.setStyle("-fx-text-fill: white;");
             cameraLabel.setStyle("-fx-text-fill: white;");
             cursorLabel.setStyle("-fx-text-fill: white;");
 
-            // CSS для темной темы
             scene.getStylesheets().clear();
             String css =
                     ".root { -fx-background-color: #1e1e1e; } " +
@@ -430,13 +445,11 @@ public class MainWindow {
             viewport.setStyle("-fx-background-color: #d0d0d0;");
             statusBar.setStyle("-fx-background-color: #c0c0c0;");
 
-            // Обновление цвета текста в статус баре для светлой темы
             modelInfoLabel.setStyle("-fx-text-fill: black;");
             renderModeLabel.setStyle("-fx-text-fill: black;");
             cameraLabel.setStyle("-fx-text-fill: black;");
             cursorLabel.setStyle("-fx-text-fill: black;");
 
-            // CSS для светлой темы
             scene.getStylesheets().clear();
             String css =
                     ".root { -fx-background-color: #f0f0f0; } " +
@@ -475,7 +488,7 @@ public class MainWindow {
         }
     }
 
-    // Заглушки для методов действий
+    // Методы работы с моделями
     private void openModel() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Открыть модель");
@@ -484,42 +497,125 @@ public class MainWindow {
         );
         File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
-            modelInfoLabel.setText("Модель: " + file.getName());
-            showInfo("Открытие модели", "Выбран файл: " + file.getName());
+            try {
+                String content = Files.readString(file.toPath());
+                Model model = ObjReader.read(content);
+
+                String modelName = file.getName().replace(".obj", "");
+                modelManager.addModel(model, modelName);
+
+                updateModelList();
+                updateStatusBar();
+
+                showInfo("Открытие модели", "Модель успешно загружена: " + file.getName() +
+                        "\nВершин: " + model.getVertices().size() +
+                        "\nПолигонов: " + model.getPolygons().size());
+            } catch (IOException e) {
+                showError("Ошибка чтения файла", "Не удалось прочитать файл: " + e.getMessage());
+            } catch (ObjReaderException e) {
+                showError("Ошибка парсинга OBJ", e.getMessage());
+            }
         }
     }
 
     private void saveModel() {
-        showInfo("Сохранение", "Модель сохранена");
+        if (modelManager.isEmpty()) {
+            showError("Нет модели", "Нет загруженной модели для сохранения");
+            return;
+        }
+
+        if (lastSavedFile != null) {
+            saveModelToFile(lastSavedFile);
+        } else {
+            saveModelAs();
+        }
     }
 
     private void saveModelAs() {
+        if (modelManager.isEmpty()) {
+            showError("Нет модели", "Нет загруженной модели для сохранения");
+            return;
+        }
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Сохранить модель как");
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("OBJ Files", "*.obj")
         );
+
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected != null) {
+            fileChooser.setInitialFileName(selected.getName() + ".obj");
+        }
+
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
-            showInfo("Сохранение", "Модель сохранена как: " + file.getName());
+            saveModelToFile(file);
+            lastSavedFile = file;
         }
     }
 
-    private void addModel() {
-        showInfo("Добавление модели", "Функция добавления модели");
+    private void saveModelToFile(File file) {
+        try {
+            ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+            if (selected != null) {
+                ObjWriter.write(selected.getModel(), file.getAbsolutePath());
+                showInfo("Сохранение", "Модель успешно сохранена: " + file.getName());
+            }
+        } catch (IOException e) {
+            showError("Ошибка записи", "Не удалось сохранить файл: " + e.getMessage());
+        } catch (ObjWriterException e) {
+            showError("Ошибка записи OBJ", e.getMessage());
+        }
     }
 
-    private void removeModel() {
-        showInfo("Удаление модели", "Функция удаления модели");
+    private void removeSelectedModel() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected != null) {
+            modelManager.removeModel(selected.getId());
+            updateModelList();
+            updateStatusBar();
+        }
     }
 
     private void clearScene() {
-        showInfo("Очистка сцены", "Сцена очищена");
-        modelInfoLabel.setText("Модель: не загружена");
+        modelManager.clearAll();
+        updateModelList();
+        updateStatusBar();
+        lastSavedFile = null;
+        showInfo("Очистка сцены", "Все модели удалены");
+    }
+
+    private void updateModelList() {
+        toolbarModelList.getItems().clear();
+        toolbarModelList.getItems().addAll(modelManager.getAllModels());
+
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected != null) {
+            toolbarModelList.getSelectionModel().select(selected);
+        }
+    }
+
+    private void updateStatusBar() {
+        if (modelManager.isEmpty()) {
+            modelInfoLabel.setText("Модель: не загружена");
+        } else {
+            ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+            modelInfoLabel.setText("Модели: " + modelManager.getModelCount() +
+                    " | Активная: " + selected.getName());
+        }
     }
 
     private void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showError(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);

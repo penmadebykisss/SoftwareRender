@@ -40,7 +40,7 @@ public class NormalCalculator {
             Vertex[] vertices = triangle.getVertices();
 
             for (int i = 0; i < 3; i++) {
-                int vertexId = System.identityHashCode(vertices[i]);
+                int vertexId = vertices[i].getId(); // ИСПОЛЬЗУЕМ ID вместо identityHashCode
                 vertexToNormals.computeIfAbsent(vertexId, k -> new ArrayList<>())
                         .add(faceNormal);
             }

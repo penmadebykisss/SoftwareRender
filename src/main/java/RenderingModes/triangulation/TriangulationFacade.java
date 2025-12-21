@@ -2,6 +2,8 @@ package RenderingModes.triangulation;
 
 import Interface.model.Model;
 import Interface.model.Polygon;
+import Interface.math.Vector3f;
+import Interface.math.Vector2f;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,15 +34,18 @@ public class TriangulationFacade {
     }
 
     private static Model triangulate(Model originalModel) {
-        // Создаем новую модель
         Model triangulatedModel = new Model();
 
-        // Копируем вершины, UV, нормали
+        // 1. Вершины
         triangulatedModel.setVertices(new ArrayList<>(originalModel.getVertices()));
+
+        // 2. Текстурные координаты - это ArrayList<Vector2f>
         triangulatedModel.setTextureVertices(new ArrayList<>(originalModel.getTextureVertices()));
+
+        // 3. Нормали
         triangulatedModel.setNormals(new ArrayList<>(originalModel.getNormals()));
 
-        // Триангулируем полигоны
+        // 4. Триангулируем полигоны
         List<Polygon> triangulatedPolygons = new ArrayList<>();
 
         for (Polygon polygon : originalModel.getPolygons()) {
@@ -66,28 +71,25 @@ public class TriangulationFacade {
 
         // Веерная триангуляция
         for (int i = 1; i < vertexCount - 1; i++) {
-            List<Integer> triVertices = List.of(
-                    vertexIndices.get(0),
-                    vertexIndices.get(i),
-                    vertexIndices.get(i + 1)
-            );
+            List<Integer> triVertices = new ArrayList<>();
+            triVertices.add(vertexIndices.get(0));
+            triVertices.add(vertexIndices.get(i));
+            triVertices.add(vertexIndices.get(i + 1));
 
             List<Integer> triTextures = null;
-            if (textureIndices != null && textureIndices.size() == vertexCount) {
-                triTextures = List.of(
-                        textureIndices.get(0),
-                        textureIndices.get(i),
-                        textureIndices.get(i + 1)
-                );
+            if (textureIndices != null && !textureIndices.isEmpty() && textureIndices.size() == vertexCount) {
+                triTextures = new ArrayList<>();
+                triTextures.add(textureIndices.get(0));
+                triTextures.add(textureIndices.get(i));
+                triTextures.add(textureIndices.get(i + 1));
             }
 
             List<Integer> triNormals = null;
-            if (normalIndices != null && normalIndices.size() == vertexCount) {
-                triNormals = List.of(
-                        normalIndices.get(0),
-                        normalIndices.get(i),
-                        normalIndices.get(i + 1)
-                );
+            if (normalIndices != null && !normalIndices.isEmpty() && normalIndices.size() == vertexCount) {
+                triNormals = new ArrayList<>();
+                triNormals.add(normalIndices.get(0));
+                triNormals.add(normalIndices.get(i));
+                triNormals.add(normalIndices.get(i + 1));
             }
 
             result.add(createTrianglePolygon(triVertices, triTextures, triNormals));
@@ -100,14 +102,14 @@ public class TriangulationFacade {
             List<Integer> normalIndices) {
 
         Polygon triangle = new Polygon();
-        triangle.setVertexIndices(new ArrayList<>(vertexIndices)); // ArrayList
+        triangle.setVertexIndices(new ArrayList<>(vertexIndices));
 
-        if (textureIndices != null) {
-            triangle.setTextureVertexIndices(new ArrayList<>(textureIndices)); // ArrayList
+        if (textureIndices != null && !textureIndices.isEmpty()) {
+            triangle.setTextureVertexIndices(new ArrayList<>(textureIndices));
         }
 
-        if (normalIndices != null) {
-            triangle.setNormalIndices(new ArrayList<>(normalIndices)); // ArrayList
+        if (normalIndices != null && !normalIndices.isEmpty()) {
+            triangle.setNormalIndices(new ArrayList<>(normalIndices));
         }
 
         return triangle;

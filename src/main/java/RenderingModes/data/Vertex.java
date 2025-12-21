@@ -7,6 +7,8 @@ import java.util.Objects;
  * Не зависит от внешних классов
  */
 public class Vertex {
+    private static int nextId = 0;
+    private final int id;
     private final float x, y, z;     // Позиция
     private final float u, v;        // Текстурные координаты (опционально)
     private final float nx, ny, nz;  // Нормаль (опционально)
@@ -18,6 +20,7 @@ public class Vertex {
 
     public Vertex(float x, float y, float z, float u, float v,
                   float nx, float ny, float nz, Color color) {
+        this.id = nextId++;
         this.x = x;
         this.y = y;
         this.z = z;
@@ -27,6 +30,11 @@ public class Vertex {
         this.ny = ny;
         this.nz = nz;
         this.color = color != null ? color : Color.WHITE;
+    }
+
+    // Новый геттер для ID
+    public int getId() {
+        return id;
     }
 
     // Геттеры
@@ -70,6 +78,6 @@ public class Vertex {
 
     @Override
     public String toString() {
-        return String.format("Vertex(%.2f, %.2f, %.2f)", x, y, z);
+        return String.format("Vertex(id=%d, %.2f, %.2f, %.2f)", id, x, y, z);
     }
 }

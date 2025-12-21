@@ -1,8 +1,9 @@
 package RenderingModes.core;
 
+import RenderingModes.data.Triangle;
+import java.util.List;
+
 public interface IRenderableModel {
     List<Triangle> getTriangles();
-    boolean isTriangulated();
-    void ensureTriangulated();
-    void recalculateNormals();
+    int getTriangleCount();
 }

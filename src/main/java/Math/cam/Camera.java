@@ -11,7 +11,7 @@ public class Camera {
     private float aspectRatio;
     private float nearPlane;
     private float farPlane;
-    
+
     public Camera(
             final Vector3D position,
             final Vector3D target,
@@ -26,7 +26,6 @@ public class Camera {
         this.aspectRatio = aspectRatio;
         this.nearPlane = nearPlane;
         this.farPlane = farPlane;
-        
     }
 
     public void setPosition(final Vector3D position) {
@@ -50,19 +49,49 @@ public class Camera {
     }
 
     public void movePosition(final Vector3D translation) {
-        this.position.add(translation);
+        this.position = this.position.add(translation);
     }
 
     public void moveTarget(final Vector3D translation) {
-        this.target.add(target);
+        this.target = this.target.add(translation);
     }
 
-    Matrix4x4 getViewMatrix() {
+    // ИЗМЕНЕНИЕ: делаем методы public
+    public Matrix4x4 getViewMatrix() {
         return GraphicConveyor.lookAt(position, target);
     }
 
-    Matrix4x4 getProjectionMatrix() {
+    public Matrix4x4 getProjectionMatrix() {
         return GraphicConveyor.perspective(fov, aspectRatio, nearPlane, farPlane);
     }
-    
+
+    // Можно добавить вспомогательные методы
+    public Vector3D getForwardDirection() {
+        return target.subtract(position).normalize();
+    }
+
+    public Vector3D getRightDirection() {
+        Vector3D up = new Vector3D(0, 1, 0);
+        return getForwardDirection().cross(up).normalize();
+    }
+
+    public Vector3D getUpDirection() {
+        return getRightDirection().cross(getForwardDirection()).normalize();
+    }
+
+    public float getFov() {
+        return fov;
+    }
+
+    public float getAspectRatio() {
+        return aspectRatio;
+    }
+
+    public float getNearPlane() {
+        return nearPlane;
+    }
+
+    public float getFarPlane() {
+        return farPlane;
+    }
 }

@@ -1,121 +1,116 @@
 package RenderingModes.render_engine;
 
-import RenderingModes.core.RenderContext;
-import RenderingModes.core.CameraAdapter;
+import Math.matrix.Matrix4x4;
+import Math.vector.Vector3D;
+import Interface.model.Model;
+import RenderingModes.core.CameraFacade;
+import RenderingModes.core.IRenderableModel;
 import RenderingModes.core.ModelAdapter;
-import RenderingModes.data.*;
+import RenderingModes.core.RenderContext;
+import RenderingModes.data.Triangle;
+import RenderingModes.data.Color;
 import RenderingModes.rasterization.TriangleRasterizer;
 import RenderingModes.shaders.SolidColorShader;
 import Math.cam.Camera;
-import Math.matrix.Matrix4x4;
 
 import java.util.List;
 
 public class RenderEngine {
-    private RenderContext context;
-    private TriangleRasterizer rasterizer;
-    private Camera camera;
-    private Matrix4x4 viewMatrix;
-    private Matrix4x4 projectionMatrix;
+    private final RenderContext context;
+    private final TriangleRasterizer rasterizer;
+    private CameraFacade camera;
 
     public RenderEngine(int width, int height) {
         this.context = new RenderContext(width, height);
         this.rasterizer = new TriangleRasterizer();
         this.context.setActiveShader(new SolidColorShader(Color.GRAY));
 
-        // Инициализируем матрицы
-        this.viewMatrix = Matrix4x4.identity();
-        this.projectionMatrix = Matrix4x4.identity();
+        // Создаем камеру по умолчанию через фасад
+        this.camera = new CameraFacade(
+                new Vector3D(0, 0, 5),    // position
+                new Vector3D(0, 0, 0),    // target
+                60.0f,                    // fov
+                (float)width / height,    // aspect ratio
+                0.1f,                     // near
+                100.0f                    // far
+        );
     }
 
-    public void setCamera(Camera camera) {
-        this.camera = camera;
-        updateMatrices();
-    }
-
-    private void updateMatrices() {
-        if (camera != null) {
-            // Получаем матрицы через адаптер
-            this.viewMatrix = CameraAdapter.getViewMatrix(camera);
-            this.projectionMatrix = CameraAdapter.getProjectionMatrix(camera);
-
-            System.out.println("Camera matrices updated");
-            System.out.println("View matrix: " + (viewMatrix != null ? "OK" : "NULL"));
-            System.out.println("Projection matrix: " + (projectionMatrix != null ? "OK" : "NULL"));
+    /**
+     * Установить камеру из Math.cam.Camera
+     */
+    public void setCamera(Camera mathCamera) {
+        if (mathCamera != null) {
+            this.camera = new CameraFacade(mathCamera);
         }
     }
 
-    public void renderModel(Object model) {
+    /**
+     * Установить камеру через фасад
+     */
+    public void setCamera(CameraFacade camera) {
+        this.camera = camera;
+    }
+
+    /**
+     * Получить текущую камеру
+     */
+    public CameraFacade getCamera() {
+        return camera;
+    }
+
+    public void renderModel(Model model) {
         if (model == null) {
             renderTestScene();
             return;
         }
 
-        context.clear();
-
-        ModelAdapter modelAdapter = new ModelAdapter(model);
-        List<Triangle> triangles = modelAdapter.getTriangles();
+        // 1. Подготавливаем модель
+        ModelAdapter adapter = new ModelAdapter(model);
+        List<Triangle> triangles = adapter.getTriangles();
 
         System.out.println("Rendering model with " + triangles.size() + " triangles");
-        System.out.println("Using view matrix: " + viewMatrix);
 
-        // Применяем матрицы преобразования к треугольникам
-        List<Triangle> transformedTriangles = transformTriangles(triangles);
+        // 2. Получаем матрицы из камеры (через фасад)
+        Matrix4x4 viewMatrix = camera.getViewMatrix();
+        Matrix4x4 projectionMatrix = camera.getProjectionMatrix();
 
-        for (Triangle triangle : transformedTriangles) {
-            rasterizer.rasterize(triangle, context, context.getActiveShader());
+        System.out.println("Camera position: " + camera.getPosition());
+        System.out.println("Camera target: " + camera.getTarget());
+        System.out.println("View matrix: " + (viewMatrix != null ? "OK" : "NULL"));
+        System.out.println("Projection matrix: " + (projectionMatrix != null ? "OK" : "NULL"));
+
+        // 3. Очищаем контекст
+        context.clear();
+
+        // 4. Рендерим каждый треугольник
+        int renderedCount = 0;
+        for (Triangle triangle : triangles) {
+            if (renderedCount >= 50) break; // Ограничим для теста
+
+            // Трансформируем треугольник с помощью матриц
+            Triangle transformed = transformTriangle(triangle, viewMatrix, projectionMatrix);
+            rasterizer.rasterize(transformed, context, context.getActiveShader());
+            renderedCount++;
         }
+
+        System.out.println("Rendered " + renderedCount + " triangles");
     }
 
-    private List<Triangle> transformTriangles(List<Triangle> triangles) {
-        // Здесь будет преобразование вершин с помощью матриц
+    private Triangle transformTriangle(Triangle triangle, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix) {
+        // Здесь будет трансформация вершин
         // Пока возвращаем как есть
-        return triangles;
+        return triangle;
     }
 
     public void renderTestScene() {
-        context.clear();
+        // Создаем тестовую модель
+        System.out.println("Rendering test scene");
 
-        ModelAdapter testAdapter = new ModelAdapter(null);
-        List<Triangle> triangles = testAdapter.getTriangles();
-
-        System.out.println("Rendering test scene with " + triangles.size() + " triangles");
-
-        int count = 0;
-        for (Triangle triangle : triangles) {
-            rasterizer.rasterize(triangle, context, context.getActiveShader());
-            count++;
-            if (count >= 3) break;
-        }
-    }
-
-    // Геттеры для матриц (могут понадобиться)
-    public Matrix4x4 getViewMatrix() {
-        return viewMatrix;
-    }
-
-    public Matrix4x4 getProjectionMatrix() {
-        return projectionMatrix;
+        // Тестовый код...
     }
 
     public RenderContext getContext() {
         return context;
-    }
-
-    public void setShader(Object shader) {
-        if (shader instanceof RenderingModes.shaders.Shader) {
-            context.setActiveShader((RenderingModes.shaders.Shader) shader);
-        }
-    }
-
-    // Метод для применения матрицы к вершине
-    public float[] transformVertex(float[] vertex) {
-        if (vertex == null || vertex.length < 3) {
-            return new float[]{0, 0, 0, 1};
-        }
-
-        // Применяем view и projection матрицы
-        // Пока заглушка
-        return new float[]{vertex[0], vertex[1], vertex[2], 1.0f};
     }
 }

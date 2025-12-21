@@ -1,7 +1,7 @@
 package Interface.objwriter;
 
-import Interface.math.Vector2f;
-import Interface.math.Vector3f;
+import Math.vector.Vector3D;
+import Math.vector.Vector2D;
 import Interface.model.Model;
 import Interface.model.Polygon;
 
@@ -34,9 +34,9 @@ public class ObjWriter {
         }
 
         try {
-            List<Vector3f> vertices = model.getVertices();
+            List<Vector3D> vertices = model.getVertices();
             for (int i = 0; i < vertices.size(); i++) {
-                Vector3f vertex = vertices.get(i);
+                Vector3D vertex = vertices.get(i);
                 validateVertex(vertex, i);
                 sb.append("v ")
                         .append(formatFloatCompact(vertex.getX()))
@@ -53,10 +53,10 @@ public class ObjWriter {
                 sb.append("\n");
             }
 
-            List<Vector2f> textureVertices = model.getTextureVertices();
+            List<Vector2D> textureVertices = model.getTextureVertices();
             if (textureVertices != null) {
                 for (int i = 0; i < textureVertices.size(); i++) {
-                    Vector2f textureVertex = textureVertices.get(i);
+                    Vector2D textureVertex = textureVertices.get(i);
                     validateTextureVertex(textureVertex, i);
                     sb.append("vt ")
                             .append(formatFloatCompact(textureVertex.getX()))
@@ -71,10 +71,10 @@ public class ObjWriter {
                 sb.append("\n");
             }
 
-            List<Vector3f> normals = model.getNormals();
+            List<Vector3D> normals = model.getNormals();
             if (normals != null) {
                 for (int i = 0; i < normals.size(); i++) {
-                    Vector3f normal = normals.get(i);
+                    Vector3D normal = normals.get(i);
                     validateNormal(normal, i);
                     sb.append("vn ")
                             .append(formatFloatCompact(normal.getX()))
@@ -160,7 +160,7 @@ public class ObjWriter {
 
     // Обычные валидаторы
 
-    protected static void validateVertex(Vector3f vertex, int index) {
+    protected static void validateVertex(Vector3D vertex, int index) {
         if (vertex == null) {
             throw new ObjWriterException("Vertex at index " + index + " is null");
         }
@@ -172,7 +172,7 @@ public class ObjWriter {
         }
     }
 
-    protected static void validateTextureVertex(Vector2f textureVertex, int index) {
+    protected static void validateTextureVertex(Vector2D textureVertex, int index) {
         if (textureVertex == null) {
             throw new ObjWriterException("Texture vertex at index " + index + " is null");
         }
@@ -184,7 +184,7 @@ public class ObjWriter {
         }
     }
 
-    protected static void validateNormal(Vector3f normal, int index) {
+    protected static void validateNormal(Vector3D normal, int index) {
         if (normal == null) {
             throw new ObjWriterException("Normal at index " + index + " is null");
         }

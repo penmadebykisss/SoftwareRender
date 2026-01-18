@@ -16,10 +16,6 @@
     </properties>
 
     <dependencies>
-        <!-- ========================================= -->
-        <!-- ЗАВИСИМОСТИ ДЛЯ INTERFACE (Вова)          -->
-        <!-- ========================================= -->
-
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
@@ -30,21 +26,24 @@
             <artifactId>javafx-fxml</artifactId>
             <version>${javafx.version}</version>
         </dependency>
-
-        <!-- ========================================= -->
-        <!-- ЗАВИСИМОСТИ ДЛЯ MATH (Ваня)               -->
-        <!-- ========================================= -->
-
-        <!-- Добавьте сюда библиотеки для Math -->
-
-
-        <!-- ========================================= -->
-        <!-- ЗАВИСИМОСТИ ДЛЯ RENDERINGMODES (Даня)     -->
-        <!-- ========================================= -->
-
-        <!-- Добавьте сюда библиотеки для RenderingModes -->
-
-
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 

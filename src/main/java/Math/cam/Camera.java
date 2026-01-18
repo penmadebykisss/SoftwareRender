@@ -56,12 +56,12 @@ public class Camera {
         this.target.add(target);
     }
 
-    Matrix4x4 getViewMatrix() {
-        return GraphicConveyor.lookAt(position, target);
-    }
+//    Matrix4x4 getViewMatrix() {
+//        return GraphicConveyor.lookAt(position, target);
+//    }
 
-    Matrix4x4 getProjectionMatrix() {
-        return GraphicConveyor.perspective(fov, aspectRatio, nearPlane, farPlane);
-    }
+//    Matrix4x4 getProjectionMatrix() {
+//        return GraphicConveyor.perspective(fov, aspectRatio, nearPlane, farPlane);
+//    }
     
 }

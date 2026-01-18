@@ -59,6 +59,7 @@ public class MainWindow {
     private Label renderModeLabel;
     private Label cameraLabel;
     private Label cursorLabel;
+    private Label deletionStatusLabel;
 
     private File lastSavedFile;
 
@@ -146,13 +147,11 @@ public class MainWindow {
         Menu cameraMenu = new Menu("Камеры");
         MenuItem addCameraItem = new MenuItem("Добавить камеру");
         MenuItem removeCameraItem = new MenuItem("Удалить камеру");
-        MenuItem switchCameraItem = new MenuItem("Переключиться на камеру");
-        MenuItem showHideCameraItem = new MenuItem("Показать/скрыть камеру в сцене");
 
         addCameraItem.setOnAction(e -> addCamera());
         removeCameraItem.setOnAction(e -> removeCamera());
 
-        cameraMenu.getItems().addAll(addCameraItem, removeCameraItem, switchCameraItem, showHideCameraItem);
+        cameraMenu.getItems().addAll(addCameraItem, removeCameraItem);
 
         // Меню "Настройки"
         Menu settingsMenu = new Menu("Настройки");
@@ -300,19 +299,92 @@ public class MainWindow {
 
         transformPane.setContent(transformBox);
 
-        // Секция удаления элементов
+        /// Секция удаления элементов
         TitledPane deletePane = new TitledPane();
         deletePane.setText("Удаление элементов модели");
         deletePane.setExpanded(false);
 
         VBox deleteBox = new VBox(10);
-        Button deleteModeBtn = new Button("Режим удаления вершин/полигонов");
-        ComboBox<String> deleteTypeCombo = new ComboBox<>();
-        deleteTypeCombo.getItems().addAll("Вершина (Vertex)", "Полигон (Polygon)");
-        deleteTypeCombo.setValue("Вершина (Vertex)");
-        Button deleteSelectedBtn = new Button("Удалить выбранное");
 
-        deleteBox.getChildren().addAll(deleteModeBtn, deleteTypeCombo, deleteSelectedBtn);
+        Label deletionInfo = new Label("Выберите тип элементов для удаления:");
+        deletionInfo.setWrapText(true);
+
+// Переключатель типа удаления
+        ToggleGroup deletionTypeGroup = new ToggleGroup();
+        RadioButton vertexModeRadio = new RadioButton("Вершины (Vertices)");
+        RadioButton polygonModeRadio = new RadioButton("Полигоны (Polygons)");
+        vertexModeRadio.setToggleGroup(deletionTypeGroup);
+        polygonModeRadio.setToggleGroup(deletionTypeGroup);
+        vertexModeRadio.setSelected(true);
+
+// Статус выбора
+        deletionStatusLabel = new Label("Не выбрано");
+        deletionStatusLabel.setStyle("-fx-font-weight: bold;");
+
+// Кнопки управления
+        Button toggleDeletionModeBtn = new Button("Включить режим удаления");
+        toggleDeletionModeBtn.setPrefWidth(200);
+
+        Button deleteSelectedBtn = new Button("Удалить выбранное");
+        deleteSelectedBtn.setDisable(true);
+
+        Button selectAllBtn = new Button("Выбрать всё");
+        selectAllBtn.setDisable(true);
+
+        Button clearSelectionBtn = new Button("Очистить выбор");
+        clearSelectionBtn.setDisable(true);
+
+        Label helpLabel = new Label(
+                "Клик - выбрать элемент\n" +
+                        "Shift+Клик - добавить к выбору\n" +
+                        "Жёлтая подсветка - наведение\n" +
+                        "Красная подсветка - выбрано"
+        );
+        helpLabel.setWrapText(true);
+        helpLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+
+// Обработчики событий
+        toggleDeletionModeBtn.setOnAction(e -> toggleDeletionMode(
+                toggleDeletionModeBtn,
+                deleteSelectedBtn,
+                selectAllBtn,
+                clearSelectionBtn,
+                vertexModeRadio.isSelected()
+        ));
+
+        vertexModeRadio.setOnAction(e -> {
+            if (renderer.getDeletionModeHandler().isActive()) {
+                renderer.getDeletionModeHandler().setMode(DeletionModeHandler.DeletionMode.VERTEX);
+                updateDeletionStatus();
+                updateScene();
+            }
+        });
+
+        polygonModeRadio.setOnAction(e -> {
+            if (renderer.getDeletionModeHandler().isActive()) {
+                renderer.getDeletionModeHandler().setMode(DeletionModeHandler.DeletionMode.POLYGON);
+                updateDeletionStatus();
+                updateScene();
+            }
+        });
+
+        deleteSelectedBtn.setOnAction(e -> deleteSelectedElements());
+        selectAllBtn.setOnAction(e -> selectAllElements());
+        clearSelectionBtn.setOnAction(e -> clearElementSelection());
+
+        deleteBox.getChildren().addAll(
+                deletionInfo,
+                vertexModeRadio,
+                polygonModeRadio,
+                new Separator(),
+                deletionStatusLabel,
+                toggleDeletionModeBtn,
+                deleteSelectedBtn,
+                selectAllBtn,
+                clearSelectionBtn,
+                new Separator(),
+                helpLabel
+        );
         deletePane.setContent(deleteBox);
 
         // Секция настроек отрисовки
@@ -401,17 +473,45 @@ public class MainWindow {
         CameraManager.CameraEntry activeCamera = cameraManager.getActiveCamera();
         if (activeCamera != null) {
             cameraController = new CameraController(activeCamera.getCamera(), canvas);
-
-            // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: устанавливаем callback для real-time обновления
             cameraController.setOnCameraChanged(this::updateScene);
         }
 
-        viewport.getChildren().add(canvas);
-
-        // Добавление отслеживания курсора
-        viewport.setOnMouseMoved(e -> {
-            cursorLabel.setText(String.format("Координаты: X:%.0f, Y:%.0f", e.getX(), e.getY()));
+        // Обработчики для режима удаления
+        canvas.setOnMouseClicked(event -> {
+            if (renderer.getDeletionModeHandler().isActive()) {
+                ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+                if (selected != null) {
+                    renderer.getDeletionModeHandler().handleMouseClick(
+                            selected.getModel(),
+                            event.getX(),
+                            event.getY(),
+                            event.isShiftDown()
+                    );
+                    updateDeletionStatus();
+                    updateScene();
+                }
+            }
         });
+
+        canvas.setOnMouseMoved(event -> {
+            if (renderer.getDeletionModeHandler().isActive()) {
+                ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+                if (selected != null) {
+                    renderer.getDeletionModeHandler().handleMouseMove(
+                            selected.getModel(),
+                            event.getX(),
+                            event.getY()
+                    );
+                    updateScene();
+                }
+            }
+            cursorLabel.setText(String.format("Координаты: X:%.0f, Y:%.0f", event.getX(), event.getY()));
+        });
+
+        // Настраиваем callback для deletion mode handler
+        renderer.getDeletionModeHandler().setOnSelectionChanged(this::updateDeletionStatus);
+
+        viewport.getChildren().add(canvas);
     }
 
 
@@ -936,6 +1036,128 @@ public class MainWindow {
         alert.setContentText(message);
         applyThemeToDialog(alert.getDialogPane());
         alert.showAndWait();
+    }
+
+    /**
+     * Переключает режим удаления
+     */
+    private void toggleDeletionMode(Button toggleBtn, Button deleteBtn,
+                                    Button selectAllBtn, Button clearBtn, boolean isVertexMode) {
+        DeletionModeHandler handler = renderer.getDeletionModeHandler();
+
+        if (handler.isActive()) {
+            // Выключаем режим удаления
+            handler.setMode(DeletionModeHandler.DeletionMode.NONE);
+            toggleBtn.setText("Включить режим удаления");
+            deleteBtn.setDisable(true);
+            selectAllBtn.setDisable(true);
+            clearBtn.setDisable(true);
+            updateDeletionStatus();
+        } else {
+            // Включаем режим удаления
+            if (modelManager.isEmpty()) {
+                showError("Нет модели", "Загрузите модель для использования режима удаления");
+                return;
+            }
+
+            DeletionModeHandler.DeletionMode mode = isVertexMode ?
+                    DeletionModeHandler.DeletionMode.VERTEX :
+                    DeletionModeHandler.DeletionMode.POLYGON;
+
+            handler.setMode(mode);
+            toggleBtn.setText("Выключить режим удаления");
+            deleteBtn.setDisable(false);
+            selectAllBtn.setDisable(false);
+            clearBtn.setDisable(false);
+            updateDeletionStatus();
+        }
+
+        updateScene();
+    }
+
+    /**
+     * Удаляет выбранные элементы
+     */
+    private void deleteSelectedElements() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected == null) {
+            showError("Нет модели", "Выберите модель для удаления элементов");
+            return;
+        }
+
+        DeletionModeHandler handler = renderer.getDeletionModeHandler();
+        int count = handler.getSelectionCount();
+
+        if (count == 0) {
+            showError("Нет выбора", "Выберите элементы для удаления");
+            return;
+        }
+
+        String elementType = handler.getMode() == DeletionModeHandler.DeletionMode.VERTEX ?
+                "вершин(ы)" : "полигон(ов)";
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Подтверждение удаления");
+        confirm.setHeaderText(null);
+        confirm.setGraphic(null);
+        confirm.setContentText("Вы действительно хотите удалить " + count + " " + elementType + "?");
+
+        applyThemeToDialog(confirm.getDialogPane());
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                boolean deleted = handler.deleteSelected(selected.getModel());
+                if (deleted) {
+                    updateDeletionStatus();
+                    updateScene();
+                    showInfo("Удаление выполнено", "Удалено " + count + " " + elementType);
+                }
+            }
+        });
+    }
+
+    /**
+     * Выбирает все элементы текущего типа
+     */
+    private void selectAllElements() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected != null) {
+            renderer.getDeletionModeHandler().selectAll(selected.getModel());
+            updateDeletionStatus();
+            updateScene();
+        }
+    }
+
+    private void clearElementSelection() {
+        renderer.getDeletionModeHandler().clearSelection();
+        updateDeletionStatus();
+        updateScene();
+    }
+
+    private void updateDeletionStatus() {
+        if (deletionStatusLabel == null) {
+            return;
+        }
+
+        DeletionModeHandler handler = renderer.getDeletionModeHandler();
+
+        if (!handler.isActive()) {
+            deletionStatusLabel.setText("Режим выключен");
+            deletionStatusLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: gray;");
+            return;
+        }
+
+        int count = handler.getSelectionCount();
+        String modeText = handler.getMode() == DeletionModeHandler.DeletionMode.VERTEX ?
+                "вершин" : "полигонов";
+
+        if (count == 0) {
+            deletionStatusLabel.setText("Выбрано: 0 " + modeText);
+            deletionStatusLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: orange;");
+        } else {
+            deletionStatusLabel.setText("Выбрано: " + count + " " + modeText);
+            deletionStatusLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: lime;");
+        }
     }
 
     public void show() {

@@ -6,7 +6,6 @@ import Interface.model.Polygon;
 import Math.cam.Camera;
 import Math.matrix.Matrix4x4;
 import Math.vector.Vector3D;
-import Math.vector.Vector4D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -27,9 +26,20 @@ public class SceneRenderer {
     private Color fillColor = Color.GRAY;
     private Color backgroundColor = Color.rgb(43, 43, 43);
 
+    // Обработчик режима удаления
+    private DeletionModeHandler deletionModeHandler;
+
     public SceneRenderer(Canvas canvas) {
         this.canvas = canvas;
         this.gc = canvas.getGraphicsContext2D();
+        this.deletionModeHandler = new DeletionModeHandler();
+    }
+
+    /**
+     * Возвращает обработчик режима удаления
+     */
+    public DeletionModeHandler getDeletionModeHandler() {
+        return deletionModeHandler;
     }
 
     /**
@@ -66,9 +76,20 @@ public class SceneRenderer {
         // Получаем комбинированную матрицу вид-проекция
         Matrix4x4 viewProjection = camera.getViewProjectionMatrix();
 
+        double centerX = canvas.getWidth() / 2;
+        double centerY = canvas.getHeight() / 2;
+
+        // Обновляем параметры проекции для deletion mode handler (передаём матрицу!)
+        deletionModeHandler.updateProjection(centerX, centerY, viewProjection);
+
         // Отрисовываем все модели
         for (ModelManager.ModelEntry modelEntry : modelManager.getAllModels()) {
             renderModel(modelEntry.getModel(), viewProjection);
+
+            // Отрисовываем подсветку выбора если активен режим удаления
+            if (deletionModeHandler.isActive()) {
+                deletionModeHandler.renderSelection(gc, modelEntry.getModel());
+            }
         }
     }
 
@@ -105,8 +126,6 @@ public class SceneRenderer {
                     Vector3D projected = transformVertex(vertex, viewProjection);
 
                     // Проверяем, находится ли вершина в видимой области
-                    // После перспективного деления координаты должны быть в диапазоне [-1, 1]
-                    // Z должно быть в диапазоне [0, 1] для правильного отсечения
                     if (Math.abs(projected.getX()) > 1.5f ||
                             Math.abs(projected.getY()) > 1.5f ||
                             projected.getZ() < 0.0f ||
@@ -158,13 +177,8 @@ public class SceneRenderer {
 
     /**
      * Трансформирует вершину через матрицу вид-проекция с перспективным делением
-     * Использует встроенный метод Matrix4x4.multiply(Vector3D)
      */
     private Vector3D transformVertex(Vector3D vertex, Matrix4x4 viewProjection) {
-        // Matrix4x4.multiply(Vector3D) автоматически:
-        // 1. Преобразует в однородные координаты (x, y, z, 1)
-        // 2. Умножает на матрицу
-        // 3. Выполняет перспективное деление через Vector4D.toVector3D()
         return viewProjection.multiply(vertex);
     }
 

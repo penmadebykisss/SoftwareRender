@@ -50,11 +50,11 @@ public class CameraController {
             float dy = currentY - previousMouseY;
 
             if (rotatingActive) {
-                handleRotation(dx, dy);
+                handleRotation(dx, -dy);
                 notifyCameraChanged(); // Уведомляем об изменении
             }
             if (movingActive) {
-                handleMovement(dx, dy);
+                handleMovement(-dx, dy);
                 notifyCameraChanged(); // Уведомляем об изменении
             }
 

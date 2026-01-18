@@ -12,21 +12,16 @@ import javafx.scene.paint.Color;
 
 import java.util.List;
 
-/**
- * Класс для отрисовки 3D моделей на Canvas с использованием камеры
- */
 public class SceneRenderer {
     private Canvas canvas;
     private GraphicsContext gc;
 
-    // Настройки отрисовки
     private boolean drawWireframe = true;
     private boolean drawFilled = false;
     private Color wireframeColor = Color.WHITE;
     private Color fillColor = Color.GRAY;
     private Color backgroundColor = Color.rgb(43, 43, 43);
 
-    // Обработчик режима удаления
     private DeletionModeHandler deletionModeHandler;
 
     public SceneRenderer(Canvas canvas) {
@@ -35,24 +30,15 @@ public class SceneRenderer {
         this.deletionModeHandler = new DeletionModeHandler();
     }
 
-    /**
-     * Возвращает обработчик режима удаления
-     */
     public DeletionModeHandler getDeletionModeHandler() {
         return deletionModeHandler;
     }
 
-    /**
-     * Очищает сцену
-     */
     public void clear() {
         gc.setFill(backgroundColor);
         gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
     }
 
-    /**
-     * Отрисовывает все модели
-     */
     public void renderScene(ModelManager modelManager, CameraManager cameraManager) {
         clear();
 
@@ -61,7 +47,6 @@ public class SceneRenderer {
             return;
         }
 
-        // Получаем активную камеру
         CameraManager.CameraEntry cameraEntry = cameraManager.getActiveCamera();
         if (cameraEntry == null) {
             return;
@@ -69,33 +54,25 @@ public class SceneRenderer {
 
         Camera camera = cameraEntry.getCamera();
 
-        // Обновляем aspect ratio камеры
         float aspect = (float) canvas.getWidth() / (float) canvas.getHeight();
         camera.setAspectRatio(aspect);
 
-        // Получаем комбинированную матрицу вид-проекция
         Matrix4x4 viewProjection = camera.getViewProjectionMatrix();
 
         double centerX = canvas.getWidth() / 2;
         double centerY = canvas.getHeight() / 2;
 
-        // Обновляем параметры проекции для deletion mode handler (передаём матрицу!)
         deletionModeHandler.updateProjection(centerX, centerY, viewProjection);
 
-        // Отрисовываем все модели
         for (ModelManager.ModelEntry modelEntry : modelManager.getAllModels()) {
             renderModel(modelEntry.getModel(), viewProjection);
 
-            // Отрисовываем подсветку выбора если активен режим удаления
             if (deletionModeHandler.isActive()) {
                 deletionModeHandler.renderSelection(gc, modelEntry.getModel());
             }
         }
     }
 
-    /**
-     * Отрисовывает одну модель с использованием матрицы вид-проекция
-     */
     private void renderModel(Model model, Matrix4x4 viewProjection) {
         if (model.getVertices().isEmpty()) {
             return;
@@ -104,7 +81,6 @@ public class SceneRenderer {
         double centerX = canvas.getWidth() / 2;
         double centerY = canvas.getHeight() / 2;
 
-        // Отрисовываем полигоны
         for (Polygon polygon : model.getPolygons()) {
             List<Integer> vertexIndices = polygon.getVertexIndices();
 
@@ -112,7 +88,6 @@ public class SceneRenderer {
                 continue;
             }
 
-            // Проецируем вершины полигона на экран
             double[] xPoints = new double[vertexIndices.size()];
             double[] yPoints = new double[vertexIndices.size()];
             boolean allVisible = true;
@@ -122,10 +97,8 @@ public class SceneRenderer {
                 if (vertexIndex >= 0 && vertexIndex < model.getVertices().size()) {
                     Vector3D vertex = model.getVertices().get(vertexIndex);
 
-                    // Применяем матрицу вид-проекция
                     Vector3D projected = transformVertex(vertex, viewProjection);
 
-                    // Проверяем, находится ли вершина в видимой области
                     if (Math.abs(projected.getX()) > 1.5f ||
                             Math.abs(projected.getY()) > 1.5f ||
                             projected.getZ() < 0.0f ||
@@ -134,21 +107,17 @@ public class SceneRenderer {
                         break;
                     }
 
-                    // Преобразуем нормализованные координаты [-1, 1] в экранные
                     xPoints[i] = centerX + (projected.getX() * centerX);
                     yPoints[i] = centerY - (projected.getY() * centerY);
                 }
             }
 
-            // Рисуем полигон только если все вершины видимы
             if (allVisible) {
-                // Рисуем заливку (если включено)
                 if (drawFilled) {
                     gc.setFill(fillColor);
                     gc.fillPolygon(xPoints, yPoints, vertexIndices.size());
                 }
 
-                // Рисуем каркас (если включено)
                 if (drawWireframe) {
                     gc.setStroke(wireframeColor);
                     gc.setLineWidth(1.0);
@@ -157,7 +126,6 @@ public class SceneRenderer {
             }
         }
 
-        // Если нет полигонов, рисуем точки вершин
         if (model.getPolygons().isEmpty()) {
             gc.setFill(Color.RED);
             for (Vector3D vertex : model.getVertices()) {
@@ -175,16 +143,10 @@ public class SceneRenderer {
         }
     }
 
-    /**
-     * Трансформирует вершину через матрицу вид-проекция с перспективным делением
-     */
     private Vector3D transformVertex(Vector3D vertex, Matrix4x4 viewProjection) {
         return viewProjection.multiply(vertex);
     }
 
-    /**
-     * Рисует сообщение об отсутствии модели
-     */
     private void drawNoModelMessage() {
         gc.setFill(Color.rgb(136, 136, 136));
         gc.setFont(javafx.scene.text.Font.font("Arial", 18));
@@ -198,8 +160,6 @@ public class SceneRenderer {
             y += 25;
         }
     }
-
-    // Геттеры и сеттеры для настроек отрисовки
 
     public void setDrawWireframe(boolean drawWireframe) {
         this.drawWireframe = drawWireframe;

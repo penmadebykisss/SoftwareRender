@@ -4,17 +4,12 @@ import Interface.model.Model;
 import Interface.model.ModelDeletionManager;
 import Math.matrix.*;
 import Math.vector.*;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
 
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Обработчик режима удаления элементов модели
- */
 public class DeletionModeHandler {
 
     public enum DeletionMode {
@@ -26,15 +21,12 @@ public class DeletionModeHandler {
     private DeletionMode currentMode = DeletionMode.NONE;
     private ModelDeletionManager deletionManager;
 
-    // Выбранные элементы для удаления
     private Set<Integer> selectedVertices = new HashSet<>();
     private Set<Integer> selectedPolygons = new HashSet<>();
 
-    // Для визуализации
     private int hoveredVertex = -1;
     private int hoveredPolygon = -1;
 
-    // Параметры проекции (копируются из SceneRenderer)
     private double centerX;
     private double centerY;
     private Matrix4x4 viewProjection;
@@ -45,47 +37,29 @@ public class DeletionModeHandler {
         this.deletionManager = new ModelDeletionManager();
     }
 
-    /**
-     * Устанавливает режим удаления
-     */
     public void setMode(DeletionMode mode) {
         this.currentMode = mode;
         clearSelection();
     }
 
-    /**
-     * Возвращает текущий режим
-     */
     public DeletionMode getMode() {
         return currentMode;
     }
 
-    /**
-     * Проверяет, активен ли режим удаления
-     */
     public boolean isActive() {
         return currentMode != DeletionMode.NONE;
     }
 
-    /**
-     * Устанавливает callback для уведомления об изменении выбора
-     */
     public void setOnSelectionChanged(Runnable callback) {
         this.onSelectionChanged = callback;
     }
 
-    /**
-     * Обновляет параметры проекции (включая матрицу вид-проекция)
-     */
     public void updateProjection(double centerX, double centerY, Matrix4x4 viewProjection) {
         this.centerX = centerX;
         this.centerY = centerY;
         this.viewProjection = viewProjection;
     }
 
-    /**
-     * Обрабатывает клик мыши
-     */
     public void handleMouseClick(Model model, double x, double y, boolean isShiftPressed) {
         if (currentMode == DeletionMode.NONE || model == null || viewProjection == null) {
             return;
@@ -95,14 +69,12 @@ public class DeletionModeHandler {
             int vertexIndex = deletionManager.findNearestVertex(model, x, y, centerX, centerY, viewProjection);
             if (vertexIndex != -1) {
                 if (isShiftPressed) {
-                    // Shift - добавляем/убираем из выбора
                     if (selectedVertices.contains(vertexIndex)) {
                         selectedVertices.remove(vertexIndex);
                     } else {
                         selectedVertices.add(vertexIndex);
                     }
                 } else {
-                    // Без Shift - выбираем только эту вершину
                     selectedVertices.clear();
                     selectedVertices.add(vertexIndex);
                 }
@@ -126,9 +98,6 @@ public class DeletionModeHandler {
         }
     }
 
-    /**
-     * Обрабатывает движение мыши (для подсветки)
-     */
     public void handleMouseMove(Model model, double x, double y) {
         if (currentMode == DeletionMode.NONE || model == null || viewProjection == null) {
             hoveredVertex = -1;
@@ -145,9 +114,6 @@ public class DeletionModeHandler {
         }
     }
 
-    /**
-     * Удаляет выбранные элементы
-     */
     public boolean deleteSelected(Model model) {
         if (model == null) {
             return false;
@@ -172,9 +138,6 @@ public class DeletionModeHandler {
         return deleted;
     }
 
-    /**
-     * Очищает выбор
-     */
     public void clearSelection() {
         selectedVertices.clear();
         selectedPolygons.clear();
@@ -183,9 +146,6 @@ public class DeletionModeHandler {
         notifySelectionChanged();
     }
 
-    /**
-     * Выбирает все элементы текущего типа
-     */
     public void selectAll(Model model) {
         if (model == null || currentMode == DeletionMode.NONE) {
             return;
@@ -206,25 +166,19 @@ public class DeletionModeHandler {
         notifySelectionChanged();
     }
 
-    /**
-     * Отрисовывает подсветку выбранных и наведённых элементов
-     */
     public void renderSelection(GraphicsContext gc, Model model) {
         if (currentMode == DeletionMode.NONE || model == null || viewProjection == null) {
             return;
         }
 
         if (currentMode == DeletionMode.VERTEX) {
-            // Рисуем выбранные вершины
             gc.setFill(Color.RED);
             for (Integer vertexIndex : selectedVertices) {
                 if (vertexIndex >= 0 && vertexIndex < model.getVertices().size()) {
                     var vertex = model.getVertices().get(vertexIndex);
 
-                    // Применяем матрицу вид-проекция
                     Vector3D projected = viewProjection.multiply(vertex);
 
-                    // Проверяем видимость
                     if (Math.abs(projected.getX()) > 1.5f ||
                             Math.abs(projected.getY()) > 1.5f ||
                             projected.getZ() < 0.0f ||
@@ -238,14 +192,11 @@ public class DeletionModeHandler {
                 }
             }
 
-            // Рисуем наведённую вершину
             if (hoveredVertex != -1 && hoveredVertex < model.getVertices().size()) {
                 var vertex = model.getVertices().get(hoveredVertex);
 
-                // Применяем матрицу вид-проекция
                 Vector3D projected = viewProjection.multiply(vertex);
 
-                // Проверяем видимость
                 if (Math.abs(projected.getX()) <= 1.5f &&
                         Math.abs(projected.getY()) <= 1.5f &&
                         projected.getZ() >= 0.0f &&
@@ -259,22 +210,17 @@ public class DeletionModeHandler {
                 }
             }
         } else if (currentMode == DeletionMode.POLYGON) {
-            // Рисуем выбранные полигоны
             gc.setFill(Color.rgb(255, 0, 0, 0.3));
             for (Integer polygonIndex : selectedPolygons) {
                 renderPolygonHighlight(gc, model, polygonIndex, Color.rgb(255, 0, 0, 0.3));
             }
 
-            // Рисуем наведённый полигон
             if (hoveredPolygon != -1) {
                 renderPolygonHighlight(gc, model, hoveredPolygon, Color.rgb(255, 255, 0, 0.3));
             }
         }
     }
 
-    /**
-     * Отрисовывает подсветку полигона
-     */
     private void renderPolygonHighlight(GraphicsContext gc, Model model, int polygonIndex, Color color) {
         if (polygonIndex < 0 || polygonIndex >= model.getPolygons().size()) {
             return;
@@ -296,10 +242,8 @@ public class DeletionModeHandler {
             if (vertexIndex >= 0 && vertexIndex < model.getVertices().size()) {
                 var vertex = model.getVertices().get(vertexIndex);
 
-                // Применяем матрицу вид-проекция
                 Vector3D projected = viewProjection.multiply(vertex);
 
-                // Проверяем видимость
                 if (Math.abs(projected.getX()) > 1.5f ||
                         Math.abs(projected.getY()) > 1.5f ||
                         projected.getZ() < 0.0f ||
@@ -319,9 +263,6 @@ public class DeletionModeHandler {
         }
     }
 
-    /**
-     * Возвращает количество выбранных элементов
-     */
     public int getSelectionCount() {
         if (currentMode == DeletionMode.VERTEX) {
             return selectedVertices.size();
@@ -331,9 +272,6 @@ public class DeletionModeHandler {
         return 0;
     }
 
-    /**
-     * Уведомляет об изменении выбора
-     */
     private void notifySelectionChanged() {
         if (onSelectionChanged != null) {
             onSelectionChanged.run();

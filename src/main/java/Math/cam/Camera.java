@@ -48,7 +48,6 @@ public class Camera {
     private Vector3D target;
     private Vector3D up;
 
-    // Параметры проекции
     private float fov;         // Field of View в градусах
     private float aspectRatio; // Соотношение сторон
     private float nearPlane;   // Ближняя плоскость отсечения
@@ -64,7 +63,6 @@ public class Camera {
         this.farPlane = farPlane;
     }
 
-    // Конструктор с параметрами по умолчанию
     public Camera(Vector3D position, Vector3D target) {
         this(position, target, 60.0f, 16.0f / 9.0f, 0.1f, 100.0f);
     }
@@ -117,9 +115,6 @@ public class Camera {
         this.farPlane = farPlane;
     }
 
-    /**
-     * Возвращает матрицу вида (View Matrix)
-     */
     public Matrix4x4 getViewMatrix() {
         Vector3D zAxis = position.subtract(target).normalize();
         Vector3D xAxis = up.cross(zAxis).normalize();
@@ -134,9 +129,6 @@ public class Camera {
         return new Matrix4x4(viewData);
     }
 
-    /**
-     * Возвращает матрицу перспективной проекции
-     */
     public Matrix4x4 getProjectionMatrix() {
         float fovRad = (float) Math.toRadians(fov);
         float tanHalfFov = (float) Math.tan(fovRad / 2.0f);
@@ -153,9 +145,6 @@ public class Camera {
         return new Matrix4x4(projData);
     }
 
-    /**
-     * Возвращает комбинированную матрицу вид-проекция
-     */
     public Matrix4x4 getViewProjectionMatrix() {
         return getProjectionMatrix().multiply(getViewMatrix());
     }

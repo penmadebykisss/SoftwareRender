@@ -22,9 +22,6 @@ public class CameraController {
         setupControlHandlers(canvas);
     }
 
-    /**
-     * Устанавливает callback, который вызывается при изменении камеры
-     */
     public void setOnCameraChanged(Runnable callback) {
         this.onCameraChanged = callback;
     }
@@ -51,11 +48,11 @@ public class CameraController {
 
             if (rotatingActive) {
                 handleRotation(dx, -dy);
-                notifyCameraChanged(); // Уведомляем об изменении
+                notifyCameraChanged();
             }
             if (movingActive) {
                 handleMovement(-dx, dy);
-                notifyCameraChanged(); // Уведомляем об изменении
+                notifyCameraChanged();
             }
 
             previousMouseX = currentX;
@@ -64,13 +61,10 @@ public class CameraController {
 
         canvas.setOnScroll(event -> {
             handleZoom((float) event.getDeltaY());
-            notifyCameraChanged(); // Уведомляем об изменении
+            notifyCameraChanged();
         });
     }
 
-    /**
-     * Вызывает callback для обновления сцены
-     */
     private void notifyCameraChanged() {
         if (onCameraChanged != null) {
             onCameraChanged.run();

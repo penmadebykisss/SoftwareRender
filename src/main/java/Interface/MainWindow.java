@@ -9,7 +9,6 @@ import Interface.objwriter.ObjWriter;
 import Interface.objwriter.ObjWriterException;
 import Math.cam.CameraController;
 import javafx.geometry.Insets;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.*;
@@ -28,18 +27,15 @@ public class MainWindow {
     private BorderPane root;
     private boolean isDarkTheme = true;
 
-    // Элементы интерфейса
     private MenuBar menuBar;
     private ToolBar toolBar;
     private VBox sidebar;
     private Pane viewport;
     private HBox statusBar;
 
-    // Canvas для отрисовки 3D
     private Canvas canvas;
     private SceneRenderer renderer;
 
-    // Управление моделями и камерами
     private ModelManager modelManager;
     private CameraController cameraController;
     private CameraManager cameraManager;

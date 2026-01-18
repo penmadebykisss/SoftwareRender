@@ -1,5 +1,7 @@
-package Interface.objreader;
+package InterfaceTests;
 
+import Interface.objreader.ObjReader;
+import Interface.objreader.ObjReaderException;
 import Math.vector.Vector2D;
 import Math.vector.Vector3D;
 import Interface.model.Model;

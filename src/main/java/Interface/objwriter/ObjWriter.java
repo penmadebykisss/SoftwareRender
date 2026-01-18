@@ -137,7 +137,7 @@ public class ObjWriter {
         return sb.toString();
     }
 
-    protected static String formatFloatCompact(float value) {
+    public static String formatFloatCompact(float value) {
         if (Float.isNaN(value)) {
             throw new ObjWriterException("Cannot format NaN value");
         }
@@ -157,7 +157,7 @@ public class ObjWriter {
         return result;
     }
 
-    protected static void validateVertex(Vector3D vertex, int index) {
+    public static void validateVertex(Vector3D vertex, int index) {
         if (vertex == null) {
             throw new ObjWriterException("Vertex at index " + index + " is null");
         }
@@ -169,7 +169,7 @@ public class ObjWriter {
         }
     }
 
-    protected static void validateTextureVertex(Vector2D textureVertex, int index) {
+    public static void validateTextureVertex(Vector2D textureVertex, int index) {
         if (textureVertex == null) {
             throw new ObjWriterException("Texture vertex at index " + index + " is null");
         }
@@ -181,7 +181,7 @@ public class ObjWriter {
         }
     }
 
-    protected static void validateNormal(Vector3D normal, int index) {
+    public static void validateNormal(Vector3D normal, int index) {
         if (normal == null) {
             throw new ObjWriterException("Normal at index " + index + " is null");
         }
@@ -193,8 +193,8 @@ public class ObjWriter {
         }
     }
 
-    protected static void validatePolygon(Polygon polygon, int polyIndex, int vertexCount,
-                                          int textureVertexCount, int normalCount) {
+    public static void validatePolygon(Polygon polygon, int polyIndex, int vertexCount,
+                                       int textureVertexCount, int normalCount) {
         if (polygon == null) {
             throw new ObjWriterException("Polygon at index " + polyIndex + " is null");
         }

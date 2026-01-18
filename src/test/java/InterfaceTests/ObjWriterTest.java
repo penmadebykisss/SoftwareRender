@@ -1,5 +1,8 @@
-package Interface.objwriter;
+package InterfaceTests;
 
+import Interface.objreader.ObjReader;
+import Interface.objwriter.ObjWriter;
+import Interface.objwriter.ObjWriterException;
 import Math.vector.Vector2D;
 import Math.vector.Vector3D;
 import Interface.model.Model;
@@ -11,7 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,7 +31,7 @@ class ObjWriterTest {
         model.getVertices().add(new Vector3D(7.0f, 8.0f, 9.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         model.getPolygons().add(polygon);
 
         String result = ObjWriter.modelToString(model);
@@ -50,6 +53,10 @@ class ObjWriterTest {
         Model model = new Model();
         model.getVertices().add(new Vector3D(1.0f, 0.0f, 0.0f));
 
+        Polygon polygon = new Polygon();
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0)));
+        model.getPolygons().add(polygon);
+
         String result = ObjWriter.modelToString(model, "Custom Comment");
 
         assertTrue(result.startsWith("# Custom Comment"));
@@ -68,8 +75,8 @@ class ObjWriterTest {
         model.getTextureVertices().add(new Vector2D(0.0f, 1.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
-        polygon.setTextureVertexIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         model.getPolygons().add(polygon);
 
         String result = ObjWriter.modelToString(model);
@@ -92,8 +99,8 @@ class ObjWriterTest {
         model.getNormals().add(new Vector3D(0.0f, 0.0f, 1.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
-        polygon.setNormalIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setNormalIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         model.getPolygons().add(polygon);
 
         String result = ObjWriter.modelToString(model);
@@ -118,9 +125,9 @@ class ObjWriterTest {
         model.getNormals().add(new Vector3D(0.0f, 0.0f, 1.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
-        polygon.setTextureVertexIndices(List.of(0, 1, 2));
-        polygon.setNormalIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setNormalIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         model.getPolygons().add(polygon);
 
         String result = ObjWriter.modelToString(model);
@@ -140,7 +147,7 @@ class ObjWriterTest {
         model.getVertices().add(new Vector3D(0.0f, 1.0f, 0.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2, 3));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2, 3)));
         model.getPolygons().add(polygon);
 
         String result = ObjWriter.modelToString(model);
@@ -175,7 +182,7 @@ class ObjWriterTest {
         model.getVertices().add(new Vector3D(1.0f, 2.0f, 3.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0)));
         model.getPolygons().add(polygon);
 
         Path filePath = tempDir.resolve("test.obj");
@@ -228,7 +235,7 @@ class ObjWriterTest {
     void testValidatePolygon() {
         // Valid polygon
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
 
         ObjWriter.validatePolygon(polygon, 0, 3, 0, 0);
 
@@ -249,13 +256,13 @@ class ObjWriterTest {
 
         // Polygon with less than 3 vertices
         Polygon poly4 = new Polygon();
-        poly4.setVertexIndices(List.of(0, 1));
+        poly4.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1)));
         assertThrows(ObjWriterException.class, () ->
                 ObjWriter.validatePolygon(poly4, 0, 3, 0, 0));
 
         // Polygon with invalid vertex index
         Polygon poly5 = new Polygon();
-        poly5.setVertexIndices(List.of(0, 1, 5)); // 5 is out of bounds
+        poly5.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 5))); // 5 is out of bounds
         assertThrows(ObjWriterException.class, () ->
                 ObjWriter.validatePolygon(poly5, 0, 3, 0, 0));
     }
@@ -263,23 +270,23 @@ class ObjWriterTest {
     @Test
     void testValidatePolygonWithTextureVertices() {
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
-        polygon.setTextureVertexIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
 
         // Valid case
         ObjWriter.validatePolygon(polygon, 0, 3, 3, 0);
 
         // Mismatched counts
         Polygon poly2 = new Polygon();
-        poly2.setVertexIndices(List.of(0, 1, 2));
-        poly2.setTextureVertexIndices(List.of(0, 1)); // Only 2 instead of 3
+        poly2.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        poly2.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1))); // Only 2 instead of 3
         assertThrows(ObjWriterException.class, () ->
                 ObjWriter.validatePolygon(poly2, 0, 3, 3, 0));
 
         // Invalid texture vertex index
         Polygon poly3 = new Polygon();
-        poly3.setVertexIndices(List.of(0, 1, 2));
-        poly3.setTextureVertexIndices(List.of(0, 1, 5)); // 5 is out of bounds
+        poly3.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        poly3.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 5))); // 5 is out of bounds
         assertThrows(ObjWriterException.class, () ->
                 ObjWriter.validatePolygon(poly3, 0, 3, 3, 0));
     }
@@ -287,16 +294,16 @@ class ObjWriterTest {
     @Test
     void testValidatePolygonWithNormals() {
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0, 1, 2));
-        polygon.setNormalIndices(List.of(0, 1, 2));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setNormalIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
 
         // Valid case
         ObjWriter.validatePolygon(polygon, 0, 3, 0, 3);
 
         // Invalid normal index
         Polygon poly2 = new Polygon();
-        poly2.setVertexIndices(List.of(0, 1, 2));
-        poly2.setNormalIndices(List.of(0, 1, 5)); // 5 is out of bounds
+        poly2.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        poly2.setNormalIndices(new ArrayList<>(Arrays.asList(0, 1, 5))); // 5 is out of bounds
         assertThrows(ObjWriterException.class, () ->
                 ObjWriter.validatePolygon(poly2, 0, 3, 0, 3));
     }
@@ -310,6 +317,10 @@ class ObjWriterTest {
     void testModelToStringWithNullElements() {
         Model model = new Model();
         model.getVertices().add(null);
+
+        Polygon polygon = new Polygon();
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0)));
+        model.getPolygons().add(polygon);
 
         assertThrows(ObjWriterException.class, () -> ObjWriter.modelToString(model));
     }
@@ -350,12 +361,10 @@ class ObjWriterTest {
         model.getVertices().add(new Vector3D(1.0f, 2.0f, 3.0f));
 
         Polygon polygon = new Polygon();
-        polygon.setVertexIndices(List.of(0));
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0)));
         model.getPolygons().add(polygon);
 
-        // Добавляем пустые коллекции
-        model.getTextureVertices().clear();
-        model.getNormals().clear();
+        // Модель уже имеет пустые коллекции по умолчанию
 
         String result = ObjWriter.modelToString(model);
 
@@ -363,6 +372,70 @@ class ObjWriterTest {
         assertTrue(result.contains("v 1 2 3"));
         assertFalse(result.contains("vt"));
         assertFalse(result.contains("vn"));
+    }
+
+    @Test
+    void testModelToStringPolygonWithoutTextureOrNormals() {
+        Model model = new Model();
+        model.getVertices().add(new Vector3D(1.0f, 0.0f, 0.0f));
+        model.getVertices().add(new Vector3D(0.0f, 1.0f, 0.0f));
+        model.getVertices().add(new Vector3D(0.0f, 0.0f, 1.0f));
+
+        model.getTextureVertices().add(new Vector2D(0.0f, 0.0f));
+        model.getNormals().add(new Vector3D(0.0f, 0.0f, 1.0f));
+
+        Polygon polygon = new Polygon();
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        // Не устанавливаем textureVertexIndices и normalIndices
+        model.getPolygons().add(polygon);
+
+        String result = ObjWriter.modelToString(model);
+
+        assertTrue(result.contains("f 1 2 3"));
+        assertFalse(result.contains("/")); // Не должно быть слэшей
+    }
+
+    @Test
+    void testModelToStringWithOnlyTextureVertices() {
+        Model model = new Model();
+        model.getVertices().add(new Vector3D(0.0f, 0.0f, 0.0f));
+        model.getVertices().add(new Vector3D(1.0f, 0.0f, 0.0f));
+        model.getVertices().add(new Vector3D(0.0f, 1.0f, 0.0f));
+
+        model.getTextureVertices().add(new Vector2D(0.0f, 0.0f));
+        model.getTextureVertices().add(new Vector2D(1.0f, 0.0f));
+        model.getTextureVertices().add(new Vector2D(0.0f, 1.0f));
+
+        Polygon polygon = new Polygon();
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        model.getPolygons().add(polygon);
+
+        String result = ObjWriter.modelToString(model);
+
+        assertTrue(result.contains("f 1/1 2/2 3/3"));
+        assertFalse(result.contains("//")); // Не должно быть двойных слэшей
+    }
+
+    @Test
+    void testModelToStringWithOnlyNormals() {
+        Model model = new Model();
+        model.getVertices().add(new Vector3D(0.0f, 0.0f, 0.0f));
+        model.getVertices().add(new Vector3D(1.0f, 0.0f, 0.0f));
+        model.getVertices().add(new Vector3D(0.0f, 1.0f, 0.0f));
+
+        model.getNormals().add(new Vector3D(0.0f, 0.0f, 1.0f));
+        model.getNormals().add(new Vector3D(0.0f, 0.0f, 1.0f));
+        model.getNormals().add(new Vector3D(0.0f, 0.0f, 1.0f));
+
+        Polygon polygon = new Polygon();
+        polygon.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        polygon.setNormalIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
+        model.getPolygons().add(polygon);
+
+        String result = ObjWriter.modelToString(model);
+
+        assertTrue(result.contains("f 1//1 2//2 3//3"));
     }
 
     private String normalizeLineEndings(String text) {

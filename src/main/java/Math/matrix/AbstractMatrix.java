@@ -126,6 +126,14 @@ public abstract class AbstractMatrix<T extends AbstractMatrix<T, V>, V extends A
         return copy;
     }
 
+    public float[][] getData() {
+        return deepCopy(data);
+    }
+
+    protected float[][] getDataDirect() {
+        return data;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

@@ -11,14 +11,22 @@ public class CameraController {
     private boolean movingActive;
 
     private final Camera camera;
+    private Runnable onCameraChanged; // Callback для обновления сцены
 
     private static final float ROTATION_SENSITIVITY = 0.3f;
     private static final float MOVEMENT_SENSITIVITY = 0.005f;
-    private static final float ZOOM_SENSITIVITY = 0.5f;
+    private static final float ZOOM_SENSITIVITY = 0.01f;
 
     public CameraController(Camera camera, Canvas canvas) {
         this.camera = camera;
         setupControlHandlers(canvas);
+    }
+
+    /**
+     * Устанавливает callback, который вызывается при изменении камеры
+     */
+    public void setOnCameraChanged(Runnable callback) {
+        this.onCameraChanged = callback;
     }
 
     private void setupControlHandlers(Canvas canvas) {
@@ -41,14 +49,32 @@ public class CameraController {
             float dx = currentX - previousMouseX;
             float dy = currentY - previousMouseY;
 
-            if (rotatingActive) handleRotation(dx, dy);
-            if (movingActive) handleMovement(dx, dy);
+            if (rotatingActive) {
+                handleRotation(dx, dy);
+                notifyCameraChanged(); // Уведомляем об изменении
+            }
+            if (movingActive) {
+                handleMovement(dx, dy);
+                notifyCameraChanged(); // Уведомляем об изменении
+            }
 
             previousMouseX = currentX;
             previousMouseY = currentY;
         });
 
-        canvas.setOnScroll(event -> handleZoom((float) event.getDeltaY()));
+        canvas.setOnScroll(event -> {
+            handleZoom((float) event.getDeltaY());
+            notifyCameraChanged(); // Уведомляем об изменении
+        });
+    }
+
+    /**
+     * Вызывает callback для обновления сцены
+     */
+    private void notifyCameraChanged() {
+        if (onCameraChanged != null) {
+            onCameraChanged.run();
+        }
     }
 
     private void handleRotation(float dx, float dy) {
@@ -89,7 +115,6 @@ public class CameraController {
         float newDist = Math.max(0.1f, dir.length() - delta * ZOOM_SENSITIVITY);
         camera.setPosition(target.add(dir.normalize().multiply(newDist)));
     }
-
 
     private Vector3D rotateVectorAroundAxis(Vector3D vector, Vector3D axis, float angleDeg) {
         float rad = (float) Math.toRadians(angleDeg);

@@ -7,6 +7,7 @@ import Interface.objreader.ObjReader;
 import Interface.objreader.ObjReaderException;
 import Interface.objwriter.ObjWriter;
 import Interface.objwriter.ObjWriterException;
+import Math.cam.CameraController;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -40,6 +41,7 @@ public class MainWindow {
 
     // Управление моделями и камерами
     private ModelManager modelManager;
+    private CameraController cameraController;
     private CameraManager cameraManager;
     private ModelTransformer modelTransformer;
 
@@ -395,6 +397,15 @@ public class MainWindow {
         canvas.widthProperty().addListener((obs, oldVal, newVal) -> updateScene());
         canvas.heightProperty().addListener((obs, oldVal, newVal) -> updateScene());
 
+        // Инициализируем контроллер камеры
+        CameraManager.CameraEntry activeCamera = cameraManager.getActiveCamera();
+        if (activeCamera != null) {
+            cameraController = new CameraController(activeCamera.getCamera(), canvas);
+
+            // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: устанавливаем callback для real-time обновления
+            cameraController.setOnCameraChanged(this::updateScene);
+        }
+
         viewport.getChildren().add(canvas);
 
         // Добавление отслеживания курсора
@@ -402,6 +413,7 @@ public class MainWindow {
             cursorLabel.setText(String.format("Координаты: X:%.0f, Y:%.0f", e.getX(), e.getY()));
         });
     }
+
 
     private void createStatusBar() {
         statusBar = new HBox(20);
@@ -517,11 +529,19 @@ public class MainWindow {
         dialog.setGraphic(null);
         dialog.setContentText("Введите название камеры:");
 
-        // Применяем тему к диалогу
         applyThemeToDialog(dialog.getDialogPane());
 
         dialog.showAndWait().ifPresent(name -> {
-            cameraManager.addCamera(name);
+            CameraManager.CameraEntry newCamera = cameraManager.addCamera(name);
+
+            // Если это первая камера, инициализируем контроллер
+            if (cameraManager.getCameraCount() == 1) {
+                cameraController = new CameraController(newCamera.getCamera(), canvas);
+
+                // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: устанавливаем callback для real-time обновления
+                cameraController.setOnCameraChanged(this::updateScene);
+            }
+
             updateCameraList();
             updateStatusBar();
         });
@@ -562,6 +582,13 @@ public class MainWindow {
         CameraManager.CameraEntry selected = cameraComboBox.getSelectionModel().getSelectedItem();
         if (selected != null) {
             cameraManager.setActiveCamera(selected.getId());
+
+            // Обновляем контроллер камеры для новой активной камеры
+            cameraController = new CameraController(selected.getCamera(), canvas);
+
+            // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: устанавливаем callback для real-time обновления
+            cameraController.setOnCameraChanged(this::updateScene);
+
             updateStatusBar();
             updateScene();
         }

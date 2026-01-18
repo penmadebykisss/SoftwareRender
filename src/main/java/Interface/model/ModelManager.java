@@ -1,6 +1,4 @@
-package Interface;
-
-import Interface.model.Model;
+package Interface.model;
 
 import java.util.ArrayList;
 import java.util.List;

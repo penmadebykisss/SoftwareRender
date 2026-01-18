@@ -1,15 +1,19 @@
 package Interface;
 
 import Interface.model.Model;
+import Interface.model.ModelManager;
+import Interface.model.ModelTransformer;
 import Interface.objreader.ObjReader;
 import Interface.objreader.ObjReaderException;
 import Interface.objwriter.ObjWriter;
 import Interface.objwriter.ObjWriterException;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -30,16 +34,23 @@ public class MainWindow {
     private Pane viewport;
     private HBox statusBar;
 
-    // Управление моделями
+    // Canvas для отрисовки 3D
+    private Canvas canvas;
+    private SceneRenderer renderer;
+
+    // Управление моделями и камерами
     private ModelManager modelManager;
+    private CameraManager cameraManager;
+    private ModelTransformer modelTransformer;
 
     // Поля трансформации
     private TextField translateX, translateY, translateZ;
     private TextField rotateX, rotateY, rotateZ;
     private TextField scaleX, scaleY, scaleZ;
 
-    // ComboBox для списка моделей
+    // ComboBox для списка моделей и камер
     private ComboBox<ModelManager.ModelEntry> toolbarModelList;
+    private ComboBox<CameraManager.CameraEntry> cameraComboBox;
 
     // Статус бар элементы
     private Label modelInfoLabel;
@@ -52,6 +63,8 @@ public class MainWindow {
     public MainWindow(Stage stage) {
         this.stage = stage;
         this.modelManager = new ModelManager();
+        this.cameraManager = new CameraManager();
+        this.modelTransformer = new ModelTransformer();
         initUI();
     }
 
@@ -77,6 +90,9 @@ public class MainWindow {
 
         stage.setTitle("3D Редактор Моделей");
         stage.setScene(scene);
+
+        // Обновляем отрисовку при запуске
+        updateScene();
     }
 
     private void createMenuBar() {
@@ -99,16 +115,30 @@ public class MainWindow {
         // Меню "Режимы отрисовки"
         Menu renderMenu = new Menu("Режимы отрисовки");
         CheckMenuItem wireframeItem = new CheckMenuItem("Рисовать полигональную сетку (Wireframe)");
+        CheckMenuItem filledItem = new CheckMenuItem("Заливка полигонов");
         CheckMenuItem textureItem = new CheckMenuItem("Использовать текстуру (Texture)");
         CheckMenuItem lightingItem = new CheckMenuItem("Использовать освещение (Lighting)");
         CheckMenuItem zBufferItem = new CheckMenuItem("Использовать Z-буфер (Z-Buffer)");
 
         wireframeItem.setSelected(true);
-        textureItem.setSelected(true);
-        lightingItem.setSelected(true);
-        zBufferItem.setSelected(true);
+        filledItem.setSelected(false);
+        textureItem.setSelected(false);
+        lightingItem.setSelected(false);
+        zBufferItem.setSelected(false);
 
-        renderMenu.getItems().addAll(wireframeItem, textureItem, lightingItem, zBufferItem);
+        wireframeItem.setOnAction(e -> {
+            renderer.setDrawWireframe(wireframeItem.isSelected());
+            updateScene();
+            updateRenderModeLabel();
+        });
+
+        filledItem.setOnAction(e -> {
+            renderer.setDrawFilled(filledItem.isSelected());
+            updateScene();
+            updateRenderModeLabel();
+        });
+
+        renderMenu.getItems().addAll(wireframeItem, filledItem, textureItem, lightingItem, zBufferItem);
 
         // Меню "Камеры"
         Menu cameraMenu = new Menu("Камеры");
@@ -116,6 +146,9 @@ public class MainWindow {
         MenuItem removeCameraItem = new MenuItem("Удалить камеру");
         MenuItem switchCameraItem = new MenuItem("Переключиться на камеру");
         MenuItem showHideCameraItem = new MenuItem("Показать/скрыть камеру в сцене");
+
+        addCameraItem.setOnAction(e -> addCamera());
+        removeCameraItem.setOnAction(e -> removeCamera());
 
         cameraMenu.getItems().addAll(addCameraItem, removeCameraItem, switchCameraItem, showHideCameraItem);
 
@@ -134,8 +167,6 @@ public class MainWindow {
 
         // Кнопки управления сценой
         Button addModelBtn = new Button("Добавить модель");
-        /* Кнопка "добавить модель" и кнопка "открыть модель" делают одно и то же,
-        так что эту можно удалить либо оставить чтобы не нужно было каждый раз открывать меню "файл"*/
         Button removeModelBtn = new Button("Удалить модель");
         toolbarModelList = new ComboBox<>();
         toolbarModelList.setPromptText("Список моделей");
@@ -178,63 +209,91 @@ public class MainWindow {
         // Перемещение
         Label translateLabel = new Label("Перемещение (Translation):");
         translateLabel.setStyle("-fx-font-weight: bold;");
-        HBox translateBox = new HBox(5);
+        HBox translateInputBox = new HBox(5);
         translateX = new TextField("0");
         translateY = new TextField("0");
         translateZ = new TextField("0");
         translateX.setPrefWidth(60);
         translateY.setPrefWidth(60);
         translateZ.setPrefWidth(60);
-        translateBox.getChildren().addAll(
+        translateInputBox.getChildren().addAll(
                 new Label("X:"), translateX,
                 new Label("Y:"), translateY,
                 new Label("Z:"), translateZ
         );
 
-        Button translatePlusBtn = new Button("+");
-        Button translateMinusBtn = new Button("-");
-        HBox translateBtns = new HBox(5, translatePlusBtn, translateMinusBtn);
+        HBox translateBtns = new HBox(5);
+        Button applyTranslateBtn = new Button("Применить");
+        Button resetTranslateBtn = new Button("Сброс");
+        applyTranslateBtn.setOnAction(e -> applyTranslation());
+        resetTranslateBtn.setOnAction(e -> {
+            translateX.setText("0");
+            translateY.setText("0");
+            translateZ.setText("0");
+        });
+        translateBtns.getChildren().addAll(applyTranslateBtn, resetTranslateBtn);
 
         // Вращение
         Label rotateLabel = new Label("Вращение (Rotation):");
         rotateLabel.setStyle("-fx-font-weight: bold;");
-        HBox rotateBox = new HBox(5);
+        HBox rotateInputBox = new HBox(5);
         rotateX = new TextField("0");
         rotateY = new TextField("0");
         rotateZ = new TextField("0");
         rotateX.setPrefWidth(60);
         rotateY.setPrefWidth(60);
         rotateZ.setPrefWidth(60);
-        rotateBox.getChildren().addAll(
+        rotateInputBox.getChildren().addAll(
                 new Label("X:"), rotateX,
                 new Label("Y:"), rotateY,
                 new Label("Z:"), rotateZ
         );
 
+        HBox rotateBtns = new HBox(5);
+        Button applyRotateBtn = new Button("Применить");
+        Button resetRotateBtn = new Button("Сброс");
+        applyRotateBtn.setOnAction(e -> applyRotation());
+        resetRotateBtn.setOnAction(e -> {
+            rotateX.setText("0");
+            rotateY.setText("0");
+            rotateZ.setText("0");
+        });
+        rotateBtns.getChildren().addAll(applyRotateBtn, resetRotateBtn);
+
         // Масштабирование
         Label scaleLabel = new Label("Масштабирование (Scaling):");
         scaleLabel.setStyle("-fx-font-weight: bold;");
-        HBox scaleBox = new HBox(5);
+        HBox scaleInputBox = new HBox(5);
         scaleX = new TextField("1");
         scaleY = new TextField("1");
         scaleZ = new TextField("1");
         scaleX.setPrefWidth(60);
         scaleY.setPrefWidth(60);
         scaleZ.setPrefWidth(60);
-        scaleBox.getChildren().addAll(
+        scaleInputBox.getChildren().addAll(
                 new Label("X:"), scaleX,
                 new Label("Y:"), scaleY,
                 new Label("Z:"), scaleZ
         );
 
-        Button resetScaleBtn = new Button("Сброс масштаба");
+        HBox scaleBtns = new HBox(5);
+        Button applyScaleBtn = new Button("Применить");
+        Button resetScaleBtn = new Button("Сброс");
+
+        applyScaleBtn.setOnAction(e -> applyScaling());
+        resetScaleBtn.setOnAction(e -> {
+            scaleX.setText("1");
+            scaleY.setText("1");
+            scaleZ.setText("1");
+        });
+        scaleBtns.getChildren().addAll(applyScaleBtn, resetScaleBtn);
 
         transformBox.getChildren().addAll(
-                translateLabel, translateBox, translateBtns,
+                translateLabel, translateInputBox, translateBtns,
                 new Separator(),
-                rotateLabel, rotateBox,
+                rotateLabel, rotateInputBox, rotateBtns,
                 new Separator(),
-                scaleLabel, scaleBox, resetScaleBtn
+                scaleLabel, scaleInputBox, scaleBtns
         );
 
         transformPane.setContent(transformBox);
@@ -284,13 +343,22 @@ public class MainWindow {
         cameraPane.setExpanded(false);
 
         VBox cameraBox = new VBox(10);
-        ComboBox<String> cameraCombo = new ComboBox<>();
-        cameraCombo.setPromptText("Выбор активной камеры");
-        cameraCombo.setPrefWidth(220);
-        Button resetCameraBtn = new Button("Сброс камеры");
+        cameraComboBox = new ComboBox<>();
+        cameraComboBox.setPromptText("Выбор активной камеры");
+        cameraComboBox.setPrefWidth(220);
+
+        cameraComboBox.setOnAction(e -> switchCamera());
+
+        Button addCamBtn = new Button("Добавить камеру");
+        Button removeCamBtn = new Button("Удалить камеру");
+        Button resetCamBtn = new Button("Сброс камеры");
         Button attachLightBtn = new Button("Привязать свет к камере");
 
-        cameraBox.getChildren().addAll(cameraCombo, resetCameraBtn, attachLightBtn);
+        addCamBtn.setOnAction(e -> addCamera());
+        removeCamBtn.setOnAction(e -> removeCamera());
+        resetCamBtn.setOnAction(e -> resetCamera());
+
+        cameraBox.getChildren().addAll(cameraComboBox, addCamBtn, removeCamBtn, resetCamBtn, attachLightBtn);
         cameraPane.setContent(cameraBox);
 
         sidebar.getChildren().addAll(
@@ -306,26 +374,28 @@ public class MainWindow {
 
         sidebar = new VBox(scrollPane);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+        // Обновляем список камер
+        updateCameraList();
     }
 
     private void createViewport() {
         viewport = new Pane();
         viewport.setStyle("-fx-background-color: #2b2b2b;");
 
-        // Добавление информационного текста
-        Label infoLabel = new Label("Сцена 3D\n(Здесь будет отображаться модель)");
-        infoLabel.setStyle("-fx-font-size: 18px; -fx-text-fill: #888888;");
-        infoLabel.setAlignment(Pos.CENTER);
+        // Создаём Canvas для отрисовки
+        canvas = new Canvas(800, 600);
+        renderer = new SceneRenderer(canvas);
 
-        // Центрирование label
-        infoLabel.layoutXProperty().bind(
-                viewport.widthProperty().subtract(infoLabel.widthProperty()).divide(2)
-        );
-        infoLabel.layoutYProperty().bind(
-                viewport.heightProperty().subtract(infoLabel.heightProperty()).divide(2)
-        );
+        // Привязываем размер canvas к размеру viewport
+        canvas.widthProperty().bind(viewport.widthProperty());
+        canvas.heightProperty().bind(viewport.heightProperty());
 
-        viewport.getChildren().add(infoLabel);
+        // Перерисовываем при изменении размера
+        canvas.widthProperty().addListener((obs, oldVal, newVal) -> updateScene());
+        canvas.heightProperty().addListener((obs, oldVal, newVal) -> updateScene());
+
+        viewport.getChildren().add(canvas);
 
         // Добавление отслеживания курсора
         viewport.setOnMouseMoved(e -> {
@@ -339,8 +409,8 @@ public class MainWindow {
         statusBar.setStyle("-fx-background-color: #3c3c3c;");
 
         modelInfoLabel = new Label("Модель: не загружена");
-        renderModeLabel = new Label("Режим: Wireframe/Texture/Lighting");
-        cameraLabel = new Label("Камера: Default");
+        renderModeLabel = new Label("Режим: Wireframe");
+        cameraLabel = new Label("Камера: Default Camera");
         cursorLabel = new Label("Координаты: X:0, Y:0");
 
         Region spacer1 = new Region();
@@ -361,130 +431,154 @@ public class MainWindow {
         );
     }
 
-    private void toggleTheme() {
-        isDarkTheme = !isDarkTheme;
-        applyTheme();
+    // Методы трансформации
+    private void applyTranslation() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected == null) {
+            showError("Нет модели", "Выберите модель для трансформации");
+            return;
+        }
+
+        try {
+            float tx = Float.parseFloat(translateX.getText());
+            float ty = Float.parseFloat(translateY.getText());
+            float tz = Float.parseFloat(translateZ.getText());
+
+            modelTransformer.translate(selected.getModel(), tx, ty, tz);
+            updateScene();
+
+            // Сбрасываем значения
+            translateX.setText("0");
+            translateY.setText("0");
+            translateZ.setText("0");
+        } catch (NumberFormatException e) {
+            showError("Ошибка ввода", "Введите корректные числовые значения");
+        }
     }
 
-    private void applyTheme() {
-        if (isDarkTheme) {
-            // Темная тема
-            root.setStyle("-fx-background-color: #1e1e1e;");
-            menuBar.setStyle("-fx-background-color: #2d2d2d;");
-            for (Menu menu : menuBar.getMenus()) {
-                menu.setStyle("-fx-text-fill: white;");
+    private void applyRotation() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected == null) {
+            showError("Нет модели", "Выберите модель для трансформации");
+            return;
+        }
+
+        try {
+            float rx = Float.parseFloat(rotateX.getText());
+            float ry = Float.parseFloat(rotateY.getText());
+            float rz = Float.parseFloat(rotateZ.getText());
+
+            modelTransformer.rotate(selected.getModel(), rx, ry, rz);
+            updateScene();
+
+            // Сбрасываем значения
+            rotateX.setText("0");
+            rotateY.setText("0");
+            rotateZ.setText("0");
+        } catch (NumberFormatException e) {
+            showError("Ошибка ввода", "Введите корректные числовые значения");
+        }
+    }
+
+    private void applyScaling() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected == null) {
+            showError("Нет модели", "Выберите модель для трансформации");
+            return;
+        }
+
+        try {
+            float sx = Float.parseFloat(scaleX.getText());
+            float sy = Float.parseFloat(scaleY.getText());
+            float sz = Float.parseFloat(scaleZ.getText());
+
+            if (sx == 0 || sy == 0 || sz == 0) {
+                showError("Ошибка масштаба", "Масштаб не может быть равен 0");
+                return;
             }
-            toolBar.setStyle("-fx-background-color: #2d2d2d;");
-            toolBar.getItems().forEach(item -> {
-                if (item instanceof Button) {
-                    item.setStyle("-fx-text-fill: white; -fx-background-color: #3c3c3c;");
-                } else if (item instanceof ComboBox) {
-                    item.setStyle("-fx-background-color: #3c3c3c; -fx-text-fill: white;");
-                }
-            });
-            sidebar.setStyle("-fx-background-color: #252526;");
-            viewport.setStyle("-fx-background-color: #2b2b2b;");
-            statusBar.setStyle("-fx-background-color: #3c3c3c;");
 
-            modelInfoLabel.setStyle("-fx-text-fill: white;");
-            renderModeLabel.setStyle("-fx-text-fill: white;");
-            cameraLabel.setStyle("-fx-text-fill: white;");
-            cursorLabel.setStyle("-fx-text-fill: white;");
+            modelTransformer.scale(selected.getModel(), sx, sy, sz);
+            updateScene();
 
-            scene.getStylesheets().clear();
-            String css =
-                    ".root { -fx-background-color: #1e1e1e; } " +
-                            ".menu-bar { -fx-background-color: #2d2d2d; } " +
-                            ".menu-bar .label { -fx-text-fill: white; } " +
-                            ".menu-bar .menu .label { -fx-text-fill: white; } " +
-                            ".menu-item { -fx-background-color: #2d2d2d; } " +
-                            ".menu-item .label { -fx-text-fill: white; } " +
-                            ".menu-item:focused { -fx-background-color: #3c3c3c; } " +
-                            ".menu-item:hover { -fx-background-color: #3c3c3c; } " +
-                            ".context-menu { -fx-background-color: #2d2d2d; } " +
-                            ".check-menu-item { -fx-background-color: #2d2d2d; } " +
-                            ".check-menu-item .label { -fx-text-fill: white; } " +
-                            ".separator .line { -fx-border-color: #4c4c4c; } " +
-                            ".button { -fx-background-color: #3c3c3c; -fx-text-fill: white; } " +
-                            ".button:hover { -fx-background-color: #4c4c4c; } " +
-                            ".text-field { -fx-background-color: #3c3c3c; -fx-text-fill: white; -fx-prompt-text-fill: #888888; } " +
-                            ".combo-box { -fx-background-color: #3c3c3c; } " +
-                            ".combo-box .list-cell { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
-                            ".combo-box-popup .list-view { -fx-background-color: #2d2d2d; } " +
-                            ".combo-box .arrow-button { -fx-background-color: #3c3c3c; } " +
-                            ".combo-box .text-input { -fx-text-fill: white; } " +
-                            ".combo-box:editable .text-field { -fx-text-fill: white; } " +
-                            ".titled-pane { -fx-text-fill: white; -fx-background-color: #252526; } " +
-                            ".titled-pane > .title { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
-                            ".titled-pane > .content { -fx-background-color: #252526; } " +
-                            ".label { -fx-text-fill: white; } " +
-                            ".check-box { -fx-text-fill: white; } " +
-                            ".check-box .box { -fx-background-color: #3c3c3c; } " +
-                            ".slider { -fx-text-fill: white; } " +
-                            ".scroll-pane { -fx-background-color: #252526; } " +
-                            ".scroll-pane > .viewport { -fx-background-color: #252526; }";
+            // Сбрасываем значения
+            scaleX.setText("1");
+            scaleY.setText("1");
+            scaleZ.setText("1");
+        } catch (NumberFormatException e) {
+            showError("Ошибка ввода", "Введите корректные числовые значения");
+        }
+    }
 
-            scene.getStylesheets().add("data:text/css;base64," +
-                    java.util.Base64.getEncoder().encodeToString(css.getBytes()));
-        } else {
-            // Светлая тема
-            root.setStyle("-fx-background-color: #f0f0f0;");
-            menuBar.setStyle("-fx-background-color: #e0e0e0;");
-            for (Menu menu : menuBar.getMenus()) {
-                menu.setStyle("-fx-text-fill: black;");
+    // Методы работы с камерами
+    private void addCamera() {
+        TextInputDialog dialog = new TextInputDialog("Camera " + (cameraManager.getCameraCount() + 1));
+        dialog.setTitle("Добавить камеру");
+        dialog.setHeaderText(null);
+        dialog.setGraphic(null);
+        dialog.setContentText("Введите название камеры:");
+
+        // Применяем тему к диалогу
+        applyThemeToDialog(dialog.getDialogPane());
+
+        dialog.showAndWait().ifPresent(name -> {
+            cameraManager.addCamera(name);
+            updateCameraList();
+            updateStatusBar();
+        });
+    }
+
+    private void removeCamera() {
+        CameraManager.CameraEntry selected = cameraComboBox.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showError("Нет камеры", "Выберите камеру для удаления");
+            return;
+        }
+
+        if (cameraManager.getCameraCount() <= 1) {
+            showError("Нельзя удалить", "Нельзя удалить последнюю камеру");
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Подтверждение");
+        confirm.setHeaderText(null);
+        confirm.setGraphic(null);
+        confirm.setContentText("Вы действительно хотите удалить камеру: " + selected.getName() + "?");
+
+        // Применяем тему к диалогу
+        applyThemeToDialog(confirm.getDialogPane());
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                cameraManager.removeCamera(selected.getId());
+                updateCameraList();
+                updateStatusBar();
+                updateScene();
             }
-            toolBar.setStyle("-fx-background-color: #e0e0e0;");
-            toolBar.getItems().forEach(item -> {
-                if (item instanceof Button) {
-                    item.setStyle("-fx-text-fill: black; -fx-background-color: #d0d0d0;");
-                } else if (item instanceof ComboBox) {
-                    item.setStyle("-fx-background-color: #d0d0d0; -fx-text-fill: black;");
-                }
-            });
-            sidebar.setStyle("-fx-background-color: #f5f5f5;");
-            viewport.setStyle("-fx-background-color: #d0d0d0;");
-            statusBar.setStyle("-fx-background-color: #c0c0c0;");
+        });
+    }
 
-            modelInfoLabel.setStyle("-fx-text-fill: black;");
-            renderModeLabel.setStyle("-fx-text-fill: black;");
-            cameraLabel.setStyle("-fx-text-fill: black;");
-            cursorLabel.setStyle("-fx-text-fill: black;");
+    private void switchCamera() {
+        CameraManager.CameraEntry selected = cameraComboBox.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            cameraManager.setActiveCamera(selected.getId());
+            updateStatusBar();
+            updateScene();
+        }
+    }
 
-            scene.getStylesheets().clear();
-            String css =
-                    ".root { -fx-background-color: #f0f0f0; } " +
-                            ".menu-bar { -fx-background-color: #e0e0e0; } " +
-                            ".menu-bar .label { -fx-text-fill: black; } " +
-                            ".menu-bar .menu .label { -fx-text-fill: black; } " +
-                            ".menu-item { -fx-background-color: #f0f0f0; } " +
-                            ".menu-item .label { -fx-text-fill: black; } " +
-                            ".menu-item:focused { -fx-background-color: #e0e0e0; } " +
-                            ".menu-item:hover { -fx-background-color: #e0e0e0; } " +
-                            ".context-menu { -fx-background-color: #f0f0f0; } " +
-                            ".check-menu-item { -fx-background-color: #f0f0f0; } " +
-                            ".check-menu-item .label { -fx-text-fill: black; } " +
-                            ".separator .line { -fx-border-color: #c0c0c0; } " +
-                            ".button { -fx-background-color: #d0d0d0; -fx-text-fill: black; } " +
-                            ".button:hover { -fx-background-color: #c0c0c0; } " +
-                            ".text-field { -fx-background-color: white; -fx-text-fill: black; } " +
-                            ".combo-box { -fx-background-color: #d0d0d0; } " +
-                            ".combo-box .list-cell { -fx-background-color: #f0f0f0; -fx-text-fill: black; } " +
-                            ".combo-box-popup .list-view { -fx-background-color: #f0f0f0; } " +
-                            ".combo-box .arrow-button { -fx-background-color: #d0d0d0; } " +
-                            ".combo-box .text-input { -fx-text-fill: black; } " +
-                            ".combo-box:editable .text-field { -fx-text-fill: black; } " +
-                            ".titled-pane { -fx-text-fill: black; -fx-background-color: #f5f5f5; } " +
-                            ".titled-pane > .title { -fx-background-color: #e0e0e0; -fx-text-fill: black; } " +
-                            ".titled-pane > .content { -fx-background-color: #f5f5f5; } " +
-                            ".label { -fx-text-fill: black; } " +
-                            ".check-box { -fx-text-fill: black; } " +
-                            ".check-box .box { -fx-background-color: white; } " +
-                            ".slider { -fx-text-fill: black; } " +
-                            ".scroll-pane { -fx-background-color: #f5f5f5; } " +
-                            ".scroll-pane > .viewport { -fx-background-color: #f5f5f5; }";
+    private void resetCamera() {
+        cameraManager.resetActiveCamera();
+        updateScene();
+    }
 
-            scene.getStylesheets().add("data:text/css;base64," +
-                    java.util.Base64.getEncoder().encodeToString(css.getBytes()));
+    private void updateCameraList() {
+        cameraComboBox.getItems().clear();
+        cameraComboBox.getItems().addAll(cameraManager.getAllCameras());
+
+        CameraManager.CameraEntry active = cameraManager.getActiveCamera();
+        if (active != null) {
+            cameraComboBox.getSelectionModel().select(active);
         }
     }
 
@@ -506,6 +600,7 @@ public class MainWindow {
 
                 updateModelList();
                 updateStatusBar();
+                updateScene();
 
                 showInfo("Открытие модели", "Модель успешно загружена: " + file.getName() +
                         "\nВершин: " + model.getVertices().size() +
@@ -575,6 +670,7 @@ public class MainWindow {
             modelManager.removeModel(selected.getId());
             updateModelList();
             updateStatusBar();
+            updateScene();
         }
     }
 
@@ -582,8 +678,8 @@ public class MainWindow {
         modelManager.clearAll();
         updateModelList();
         updateStatusBar();
+        updateScene();
         lastSavedFile = null;
-        showInfo("Очистка сцены", "Все модели удалены");
     }
 
     private void updateModelList() {
@@ -601,8 +697,197 @@ public class MainWindow {
             modelInfoLabel.setText("Модель: не загружена");
         } else {
             ModelManager.ModelEntry selected = modelManager.getSelectedModel();
-            modelInfoLabel.setText("Модели: " + modelManager.getModelCount() +
-                    " | Активная: " + selected.getName());
+            if (selected != null) {
+                modelInfoLabel.setText("Модели: " + modelManager.getModelCount() +
+                        " | Активная: " + selected.getName());
+            }
+        }
+
+        CameraManager.CameraEntry activeCamera = cameraManager.getActiveCamera();
+        if (activeCamera != null) {
+            cameraLabel.setText("Камера: " + activeCamera.getName());
+        }
+    }
+
+    private void updateRenderModeLabel() {
+        String mode = "";
+        if (renderer.isDrawWireframe()) mode += "Wireframe ";
+        if (renderer.isDrawFilled()) mode += "Filled ";
+        if (mode.isEmpty()) mode = "None";
+
+        renderModeLabel.setText("Режим: " + mode.trim());
+    }
+
+    private void updateScene() {
+        renderer.renderScene(modelManager, cameraManager);
+    }
+
+    private void toggleTheme() {
+        isDarkTheme = !isDarkTheme;
+        applyTheme();
+        updateScene();
+    }
+
+    private void applyTheme() {
+        if (isDarkTheme) {
+            renderer.setBackgroundColor(Color.rgb(43, 43, 43));
+            // Тёмная тема
+            root.setStyle("-fx-background-color: #1e1e1e;");
+            menuBar.setStyle("-fx-background-color: #2d2d2d;");
+            for (Menu menu : menuBar.getMenus()) {
+                menu.setStyle("-fx-text-fill: white;");
+            }
+            toolBar.setStyle("-fx-background-color: #2d2d2d;");
+            toolBar.getItems().forEach(item -> {
+                if (item instanceof Button) {
+                    item.setStyle("-fx-text-fill: white; -fx-background-color: #3c3c3c;");
+                } else if (item instanceof ComboBox) {
+                    item.setStyle("-fx-background-color: #3c3c3c; -fx-text-fill: white;");
+                }
+            });
+            sidebar.setStyle("-fx-background-color: #252526;");
+            viewport.setStyle("-fx-background-color: #2b2b2b;");
+            statusBar.setStyle("-fx-background-color: #3c3c3c;");
+
+            modelInfoLabel.setStyle("-fx-text-fill: white;");
+            renderModeLabel.setStyle("-fx-text-fill: white;");
+            cameraLabel.setStyle("-fx-text-fill: white;");
+            cursorLabel.setStyle("-fx-text-fill: white;");
+
+            scene.getStylesheets().clear();
+            String css =
+                    ".root { -fx-background-color: #1e1e1e; } " +
+                            ".menu-bar { -fx-background-color: #2d2d2d; } " +
+                            ".menu-bar .label { -fx-text-fill: white; } " +
+                            ".menu-bar .menu .label { -fx-text-fill: white; } " +
+                            ".menu-item { -fx-background-color: #2d2d2d; } " +
+                            ".menu-item .label { -fx-text-fill: white; } " +
+                            ".menu-item:focused { -fx-background-color: #3c3c3c; } " +
+                            ".menu-item:hover { -fx-background-color: #3c3c3c; } " +
+                            ".context-menu { -fx-background-color: #2d2d2d; } " +
+                            ".check-menu-item { -fx-background-color: #2d2d2d; } " +
+                            ".check-menu-item .label { -fx-text-fill: white; } " +
+                            ".separator .line { -fx-border-color: #4c4c4c; } " +
+                            ".button { -fx-background-color: #3c3c3c; -fx-text-fill: white; } " +
+                            ".button:hover { -fx-background-color: #4c4c4c; } " +
+                            ".text-field { -fx-background-color: #3c3c3c; -fx-text-fill: white; -fx-prompt-text-fill: #888888; } " +
+                            ".combo-box { -fx-background-color: #3c3c3c; } " +
+                            ".combo-box .list-cell { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
+                            ".combo-box-popup .list-view { -fx-background-color: #2d2d2d; } " +
+                            ".combo-box .arrow-button { -fx-background-color: #3c3c3c; } " +
+                            ".combo-box .text-input { -fx-text-fill: white; } " +
+                            ".combo-box:editable .text-field { -fx-text-fill: white; } " +
+                            ".titled-pane { -fx-text-fill: white; -fx-background-color: #252526; } " +
+                            ".titled-pane > .title { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
+                            ".titled-pane > .content { -fx-background-color: #252526; } " +
+                            ".label { -fx-text-fill: white; } " +
+                            ".check-box { -fx-text-fill: white; } " +
+                            ".check-box .box { -fx-background-color: #3c3c3c; } " +
+                            ".slider { -fx-text-fill: white; } " +
+                            ".scroll-pane { -fx-background-color: #252526; } " +
+                            ".scroll-pane > .viewport { -fx-background-color: #252526; } ";
+
+            scene.getStylesheets().add("data:text/css;base64," +
+                    java.util.Base64.getEncoder().encodeToString(css.getBytes()));
+        } else {
+            renderer.setBackgroundColor(Color.rgb(208, 208, 208));
+            // Светлая тема
+            root.setStyle("-fx-background-color: #f0f0f0;");
+            menuBar.setStyle("-fx-background-color: #e0e0e0;");
+            for (Menu menu : menuBar.getMenus()) {
+                menu.setStyle("-fx-text-fill: black;");
+            }
+            toolBar.setStyle("-fx-background-color: #e0e0e0;");
+            toolBar.getItems().forEach(item -> {
+                if (item instanceof Button) {
+                    item.setStyle("-fx-text-fill: black; -fx-background-color: #d0d0d0;");
+                } else if (item instanceof ComboBox) {
+                    item.setStyle("-fx-background-color: #d0d0d0; -fx-text-fill: black;");
+                }
+            });
+            sidebar.setStyle("-fx-background-color: #f5f5f5;");
+            viewport.setStyle("-fx-background-color: #d0d0d0;");
+            statusBar.setStyle("-fx-background-color: #c0c0c0;");
+
+            modelInfoLabel.setStyle("-fx-text-fill: black;");
+            renderModeLabel.setStyle("-fx-text-fill: black;");
+            cameraLabel.setStyle("-fx-text-fill: black;");
+            cursorLabel.setStyle("-fx-text-fill: black;");
+
+            scene.getStylesheets().clear();
+            String css =
+                    ".root { -fx-background-color: #f0f0f0; } " +
+                            ".menu-bar { -fx-background-color: #e0e0e0; } " +
+                            ".menu-bar .label { -fx-text-fill: black; } " +
+                            ".menu-bar .menu .label { -fx-text-fill: black; } " +
+                            ".menu-item { -fx-background-color: #f0f0f0; } " +
+                            ".menu-item .label { -fx-text-fill: black; } " +
+                            ".menu-item:focused { -fx-background-color: #e0e0e0; } " +
+                            ".menu-item:hover { -fx-background-color: #e0e0e0; } " +
+                            ".context-menu { -fx-background-color: #f0f0f0; } " +
+                            ".check-menu-item { -fx-background-color: #f0f0f0; } " +
+                            ".check-menu-item .label { -fx-text-fill: black; } " +
+                            ".separator .line { -fx-border-color: #c0c0c0; } " +
+                            ".button { -fx-background-color: #d0d0d0; -fx-text-fill: black; } " +
+                            ".button:hover { -fx-background-color: #c0c0c0; } " +
+                            ".text-field { -fx-background-color: white; -fx-text-fill: black; } " +
+                            ".combo-box { -fx-background-color: #d0d0d0; } " +
+                            ".combo-box .list-cell { -fx-background-color: #f0f0f0; -fx-text-fill: black; } " +
+                            ".combo-box-popup .list-view { -fx-background-color: #f0f0f0; } " +
+                            ".combo-box .arrow-button { -fx-background-color: #d0d0d0; } " +
+                            ".combo-box .text-input { -fx-text-fill: black; } " +
+                            ".combo-box:editable .text-field { -fx-text-fill: black; } " +
+                            ".titled-pane { -fx-text-fill: black; -fx-background-color: #f5f5f5; } " +
+                            ".titled-pane > .title { -fx-background-color: #e0e0e0; -fx-text-fill: black; } " +
+                            ".titled-pane > .content { -fx-background-color: #f5f5f5; } " +
+                            ".label { -fx-text-fill: black; } " +
+                            ".check-box { -fx-text-fill: black; } " +
+                            ".check-box .box { -fx-background-color: white; } " +
+                            ".slider { -fx-text-fill: black; } " +
+                            ".scroll-pane { -fx-background-color: #f5f5f5; } " +
+                            ".scroll-pane > .viewport { -fx-background-color: #f5f5f5; } ";
+
+            scene.getStylesheets().add("data:text/css;base64," +
+                    java.util.Base64.getEncoder().encodeToString(css.getBytes()));
+        }
+    }
+
+    private void applyThemeToDialog(DialogPane dialogPane) {
+        if (isDarkTheme) {
+            String darkDialogCss =
+                    ".dialog-pane { -fx-background-color: #2d2d2d; } " +
+                            ".dialog-pane .label { -fx-text-fill: white; } " +
+                            ".dialog-pane .content.label { -fx-text-fill: white; } " +
+                            ".dialog-pane .header-panel .label { -fx-text-fill: white; } " +
+                            ".dialog-pane .button { -fx-background-color: #3c3c3c; -fx-text-fill: white; } " +
+                            ".dialog-pane .button:hover { -fx-background-color: #4c4c4c; } " +
+                            ".dialog-pane .text-field { -fx-background-color: #3c3c3c; -fx-text-fill: white; -fx-prompt-text-fill: #888888; } " +
+                            ".dialog-pane .text-input { -fx-text-fill: white; } " +
+                            ".dialog-pane .combo-box { -fx-background-color: #3c3c3c; } " +
+                            ".dialog-pane .combo-box .list-cell { -fx-background-color: #2d2d2d; -fx-text-fill: white; } " +
+                            ".dialog-pane .combo-box .text-input { -fx-text-fill: white; }";
+
+            dialogPane.getStylesheets().clear();
+            dialogPane.getStylesheets().add("data:text/css;base64," +
+                    java.util.Base64.getEncoder().encodeToString(darkDialogCss.getBytes()));
+
+        } else {
+            String lightDialogCss =
+                    ".dialog-pane { -fx-background-color: #f0f0f0; } " +
+                            ".dialog-pane .label { -fx-text-fill: black; } " +
+                            ".dialog-pane .content.label { -fx-text-fill: black; } " +
+                            ".dialog-pane .header-panel .label { -fx-text-fill: black; } " +
+                            ".dialog-pane .button { -fx-background-color: #d0d0d0; -fx-text-fill: black; } " +
+                            ".dialog-pane .button:hover { -fx-background-color: #c0c0c0; } " +
+                            ".dialog-pane .text-field { -fx-background-color: white; -fx-text-fill: black; } " +
+                            ".dialog-pane .text-input { -fx-text-fill: black; } " +
+                            ".dialog-pane .combo-box { -fx-background-color: #d0d0d0; } " +
+                            ".dialog-pane .combo-box .list-cell { -fx-background-color: #f0f0f0; -fx-text-fill: black; } " +
+                            ".dialog-pane .combo-box .text-input { -fx-text-fill: black; }";
+
+            dialogPane.getStylesheets().clear();
+            dialogPane.getStylesheets().add("data:text/css;base64," +
+                    java.util.Base64.getEncoder().encodeToString(lightDialogCss.getBytes()));
         }
     }
 
@@ -610,7 +895,9 @@ public class MainWindow {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
+        alert.setGraphic(null);
         alert.setContentText(message);
+        applyThemeToDialog(alert.getDialogPane());
         alert.showAndWait();
     }
 
@@ -618,7 +905,9 @@ public class MainWindow {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(null);
+        alert.setGraphic(null);
         alert.setContentText(message);
+        applyThemeToDialog(alert.getDialogPane());
         alert.showAndWait();
     }
 

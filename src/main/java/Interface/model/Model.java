@@ -1,38 +1,37 @@
 package Interface.model;
 
-
-import Math.vector.Vector3D;
-import Math.vector.Vector2D;
+import Interface.math.Vector2f;
+import Interface.math.Vector3f;
 
 import java.util.ArrayList;
 
 public class Model {
-    private ArrayList<Vector3D> vertices = new ArrayList<Vector3D>();
-    private ArrayList<Vector2D> textureVertices = new ArrayList<Vector2D>();
-    private ArrayList<Vector3D> normals = new ArrayList<Vector3D>();
+    private ArrayList<Vector3f> vertices = new ArrayList<Vector3f>();
+    private ArrayList<Vector2f> textureVertices = new ArrayList<Vector2f>();
+    private ArrayList<Vector3f> normals = new ArrayList<Vector3f>();
     private ArrayList<Polygon> polygons = new ArrayList<Polygon>();
 
-    public ArrayList<Vector3D> getVertices() {
+    public ArrayList<Vector3f> getVertices() {
         return vertices;
     }
 
-    public void setVertices(ArrayList<Vector3D> vertices) {
+    public void setVertices(ArrayList<Vector3f> vertices) {
         this.vertices = vertices;
     }
 
-    public ArrayList<Vector2D> getTextureVertices() {
+    public ArrayList<Vector2f> getTextureVertices() {
         return textureVertices;
     }
 
-    public void setTextureVertices(ArrayList<Vector2D> textureVertices) {
+    public void setTextureVertices(ArrayList<Vector2f> textureVertices) {
         this.textureVertices = textureVertices;
     }
 
-    public ArrayList<Vector3D> getNormals() {
+    public ArrayList<Vector3f> getNormals() {
         return normals;
     }
 
-    public void setNormals(ArrayList<Vector3D> normals) {
+    public void setNormals(ArrayList<Vector3f> normals) {
         this.normals = normals;
     }
 

@@ -11,7 +11,7 @@ public class CameraController {
     private boolean movingActive;
 
     private final Camera camera;
-    private Runnable onCameraChanged; // Callback для обновления сцены
+    private Runnable onCameraChanged;
 
     private static final float ROTATION_SENSITIVITY = 0.3f;
     private static final float MOVEMENT_SENSITIVITY = 0.005f;

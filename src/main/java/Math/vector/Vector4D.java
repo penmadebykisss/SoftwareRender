@@ -20,7 +20,6 @@ public final class Vector4D extends AbstractVector<Vector4D> {
     public float getZ() { return components[2]; }
     public float getW() { return components[3]; }
 
-    // Специфичные для 4D операции
     public Vector3D toVector3D() {
         if (Math.abs(getW()) < 1e-12f) {
             throw new ArithmeticException("Cannot project vector with w=0");

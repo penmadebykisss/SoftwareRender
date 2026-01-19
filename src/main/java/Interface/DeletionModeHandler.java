@@ -128,6 +128,7 @@ public class DeletionModeHandler {
         } else if (currentMode == DeletionMode.POLYGON && !selectedPolygons.isEmpty()) {
             deletionManager.deletePolygons(model, selectedPolygons);
             selectedPolygons.clear();
+            deletionManager.removeUnusedVertices(model);
             deleted = true;
         }
 

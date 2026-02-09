@@ -86,8 +86,9 @@ public class TriangleRasterization {
             int height,
             Texture texture,
             Lighting lighting,
-            Color baseColor,
-            Vector3D cameraPosition
+            Color color,
+            Vector3D cameraPosition,
+            RenderingModes modes
     ) {
         PixelWriter pw = gc.getPixelWriter();
 
@@ -134,10 +135,9 @@ public class TriangleRasterization {
         Float light1 = v1.getLightingIntensity();
         Float light2 = v2.getLightingIntensity();
 
-        boolean hasTexture = texture != null && tex0 != null && tex1 != null && tex2 != null;
+        boolean hasTexture = modes.isUseTexture() && texture != null;
+        boolean hasLighting = modes.isUseLighting() && lighting != null;
         boolean hasPrecomputedLighting = lighting != null && light0 != null && light1 != null && light2 != null;
-        boolean hasLighting = !hasPrecomputedLighting && lighting != null && normal0 != null && normal1 != null && normal2 != null
-                && worldPos0 != null && worldPos1 != null && worldPos2 != null;
 
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
@@ -150,7 +150,7 @@ public class TriangleRasterization {
                     double depth = alpha * z0 + beta * z1 + gamma * z2;
 
                     if (zBuffer.testAndSet(x, y, depth)) {
-                        Color pixelColor = baseColor;
+                        Color pixelColor = color;
 
                         if (hasTexture) {
                             // перспективно-корректная интерполяция UV

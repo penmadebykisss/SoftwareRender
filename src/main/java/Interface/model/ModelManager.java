@@ -76,6 +76,7 @@ public class ModelManager {
         private final int id;
         private final Model model;
         private String name;
+        private RenderingModes.Texture texture; // Поле для хранения текстуры
 
         public ModelEntry(int id, Model model, String name) {
             this.id = id;
@@ -83,25 +84,16 @@ public class ModelManager {
             this.name = name;
         }
 
-        public int getId() {
-            return id;
-        }
+        // Геттер и сеттер для текстуры
+        public RenderingModes.Texture getTexture() { return texture; }
+        public void setTexture(RenderingModes.Texture texture) { this.texture = texture; }
 
-        public Model getModel() {
-            return model;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
+        public int getId() { return id; }
+        public Model getModel() { return model; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
 
         @Override
-        public String toString() {
-            return name;
-        }
+        public String toString() { return name; }
     }
 }

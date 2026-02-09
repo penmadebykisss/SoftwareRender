@@ -8,34 +8,35 @@ public class Polygon {
     private ArrayList<Integer> textureVertexIndices;
     private ArrayList<Integer> normalIndices;
 
-
     public Polygon() {
         vertexIndices = new ArrayList<Integer>();
         textureVertexIndices = new ArrayList<Integer>();
         normalIndices = new ArrayList<Integer>();
     }
 
+    private void validateIndices(ArrayList<Integer> indices, String name) {
+        // Разрешаем null и пустые списки.
+        // Ошибка только если данные есть, но их меньше 3.
+        if (indices != null && !indices.isEmpty() && indices.size() < 3) {
+            throw new IllegalArgumentException(name + " must have at least 3 elements, got: " + indices.size());
+        }
+    }
+
     public void setVertexIndices(ArrayList<Integer> vertexIndices) {
         if (vertexIndices == null) {
             throw new IllegalArgumentException("Vertex indices cannot be null");
         }
-        if (vertexIndices.size() < 3) {
-            throw new IllegalArgumentException("Polygon must have at least 3 vertices, got: " + vertexIndices.size());
-        }
+        validateIndices(vertexIndices, "Vertex indices");
         this.vertexIndices = vertexIndices;
     }
 
     public void setTextureVertexIndices(ArrayList<Integer> textureVertexIndices) {
-        if (textureVertexIndices != null && textureVertexIndices.size() < 3) {
-            throw new IllegalArgumentException("Texture vertex indices must have at least 3 elements if provided, got: " + textureVertexIndices.size());
-        }
+        validateIndices(textureVertexIndices, "Texture vertex indices");
         this.textureVertexIndices = textureVertexIndices;
     }
 
     public void setNormalIndices(ArrayList<Integer> normalIndices) {
-        if (normalIndices != null && normalIndices.size() < 3) {
-            throw new IllegalArgumentException("Normal indices must have at least 3 elements if provided, got: " + normalIndices.size());
-        }
+        validateIndices(normalIndices, "Normal indices");
         this.normalIndices = normalIndices;
     }
 

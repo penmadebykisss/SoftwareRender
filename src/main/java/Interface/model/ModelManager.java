@@ -13,6 +13,9 @@ public class ModelManager {
     }
 
     public ModelEntry addModel(Model model, String name) {
+        RenderingModes.Triangulator.triangulate(model);
+        RenderingModes.NormalCalculator.recalculateNormals(model);
+
         ModelEntry entry = new ModelEntry(nextId++, model, name);
         models.add(entry);
         if (selectedModel == null) {

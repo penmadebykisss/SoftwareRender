@@ -64,9 +64,13 @@ public class MainWindow {
         this.modelManager = new ModelManager();
         this.cameraManager = new CameraManager();
         this.modelTransformer = new ModelTransformer();
+
+        this.canvas = new Canvas(800, 600);
+
+        this.renderer = new SceneRenderer(this.canvas);
+
         initUI();
     }
-
     private void initUI() {
         root = new BorderPane();
 
@@ -100,16 +104,18 @@ public class MainWindow {
         // Меню "Файл"
         Menu fileMenu = new Menu("Файл");
         MenuItem openItem = new MenuItem("Открыть модель");
+        MenuItem loadTextureItem = new MenuItem("Загрузить текстуру...");
         MenuItem saveItem = new MenuItem("Сохранить модель");
         MenuItem saveAsItem = new MenuItem("Сохранить как");
         MenuItem exitItem = new MenuItem("Выход");
 
         openItem.setOnAction(e -> openModel());
+        loadTextureItem.setOnAction(e -> loadTextureAction());
         saveItem.setOnAction(e -> saveModel());
         saveAsItem.setOnAction(e -> saveModelAs());
         exitItem.setOnAction(e -> stage.close());
 
-        fileMenu.getItems().addAll(openItem, saveItem, saveAsItem, new SeparatorMenuItem(), exitItem);
+        fileMenu.getItems().addAll(openItem, loadTextureItem, new SeparatorMenuItem(), saveItem, saveAsItem, new SeparatorMenuItem(), exitItem);
 
         // Меню "Режимы отрисовки"
         Menu renderMenu = new Menu("Режимы отрисовки");
@@ -119,11 +125,11 @@ public class MainWindow {
         CheckMenuItem lightingItem = new CheckMenuItem("Использовать освещение (Lighting)");
         CheckMenuItem zBufferItem = new CheckMenuItem("Использовать Z-буфер (Z-Buffer)");
 
-        wireframeItem.setSelected(true);
-        filledItem.setSelected(false);
-        textureItem.setSelected(false);
-        lightingItem.setSelected(false);
-        zBufferItem.setSelected(false);
+        wireframeItem.setSelected(renderer.isDrawWireframe());
+        filledItem.setSelected(renderer.isDrawFilled());
+        textureItem.setSelected(renderer.isUseTextureMapping());
+        lightingItem.setSelected(renderer.isUseLighting());
+        zBufferItem.setSelected(true);
 
         wireframeItem.setOnAction(e -> {
             renderer.setDrawWireframe(wireframeItem.isSelected());
@@ -137,23 +143,38 @@ public class MainWindow {
             updateRenderModeLabel();
         });
 
+        textureItem.setOnAction(e -> {
+            ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+            if (textureItem.isSelected() && (selected != null && selected.getTexture() == null)) {
+                loadTextureAction();
+            }
+            renderer.setUseTextureMapping(textureItem.isSelected());
+            updateScene();
+            updateRenderModeLabel();
+        });
+
+        lightingItem.setOnAction(e -> {
+            renderer.setUseLighting(lightingItem.isSelected());
+            updateScene();
+            updateRenderModeLabel();
+        });
+
+        zBufferItem.setOnAction(e -> updateScene());
+
         renderMenu.getItems().addAll(wireframeItem, filledItem, textureItem, lightingItem, zBufferItem);
 
         // Меню "Камеры"
         Menu cameraMenu = new Menu("Камеры");
         MenuItem addCameraItem = new MenuItem("Добавить камеру");
         MenuItem removeCameraItem = new MenuItem("Удалить камеру");
-
         addCameraItem.setOnAction(e -> addCamera());
         removeCameraItem.setOnAction(e -> removeCamera());
-
         cameraMenu.getItems().addAll(addCameraItem, removeCameraItem);
 
         // Меню "Настройки"
         Menu settingsMenu = new Menu("Настройки");
         MenuItem themeItem = new MenuItem("Тема: Светлая / Тёмная");
         themeItem.setOnAction(e -> toggleTheme());
-
         settingsMenu.getItems().add(themeItem);
 
         menuBar.getMenus().addAll(fileMenu, renderMenu, cameraMenu, settingsMenu);
@@ -162,15 +183,18 @@ public class MainWindow {
     private void createToolBar() {
         toolBar = new ToolBar();
 
-        // Кнопки управления сценой
         Button addModelBtn = new Button("Добавить модель");
+        Button loadTextureBtn = new Button("Загрузить текстуру");
         Button removeModelBtn = new Button("Удалить модель");
+
         toolbarModelList = new ComboBox<>();
         toolbarModelList.setPromptText("Список моделей");
         toolbarModelList.setPrefWidth(150);
+
         Button clearSceneBtn = new Button("Очистить сцену");
 
         addModelBtn.setOnAction(e -> openModel());
+        loadTextureBtn.setOnAction(e -> loadTextureAction());
         removeModelBtn.setOnAction(e -> removeSelectedModel());
         clearSceneBtn.setOnAction(e -> clearScene());
 
@@ -179,15 +203,17 @@ public class MainWindow {
             if (selected != null) {
                 modelManager.setSelectedModel(selected.getId());
                 updateStatusBar();
+                updateScene();
             }
         });
 
         toolBar.getItems().addAll(
                 addModelBtn,
+                loadTextureBtn,
                 removeModelBtn,
+                new Separator(),
                 toolbarModelList,
-                clearSceneBtn,
-                new Separator()
+                clearSceneBtn
         );
     }
 
@@ -833,12 +859,17 @@ public class MainWindow {
     }
 
     private void updateRenderModeLabel() {
-        String mode = "";
-        if (renderer.isDrawWireframe()) mode += "Wireframe ";
-        if (renderer.isDrawFilled()) mode += "Filled ";
-        if (mode.isEmpty()) mode = "None";
+        StringBuilder mode = new StringBuilder();
 
-        renderModeLabel.setText("Режим: " + mode.trim());
+        if (renderer.isDrawWireframe()) mode.append("Сетка ");
+        if (renderer.isDrawFilled()) mode.append("Заливка ");
+        if (renderer.isUseTextureMapping()) mode.append("Текстура ");
+        if (renderer.isUseLighting()) mode.append("Свет ");
+
+        String result = mode.toString().trim();
+        if (result.isEmpty()) result = "Нет";
+
+        renderModeLabel.setText("Режим: " + result);
     }
 
     private void updateScene() {
@@ -1158,5 +1189,42 @@ public class MainWindow {
 
     public void show() {
         stage.show();
+    }
+
+    private void loadTextureAction() {
+        ModelManager.ModelEntry selected = modelManager.getSelectedModel();
+        if (selected == null) {
+            showError("Ошибка выбора", "Сначала выберите модель, которой хотите назначить текстуру.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Выберите текстуру (PNG/JPG)");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Изображения", "*.png", "*.jpg", "*.jpeg")
+        );
+
+        File file = fileChooser.showOpenDialog(stage);
+        if (file != null) {
+            try {
+                // Загрузка
+                javafx.scene.image.Image img = new javafx.scene.image.Image(file.toURI().toString());
+
+                // Если картинка не загрузилась (например, битый файл)
+                if (img.isError()) {
+                    showError("Ошибка загрузки", "Не удалось прочитать файл изображения.");
+                    return;
+                }
+
+                RenderingModes.Texture texture = new RenderingModes.Texture(img);
+                selected.setTexture(texture);
+
+                updateScene();
+                System.out.println("Текстура успешно загружена для: " + selected.getName());
+
+            } catch (Exception e) {
+                showError("Ошибка текстурирования", "Не удалось применить текстуру: " + e.getMessage());
+            }
+        }
     }
 }

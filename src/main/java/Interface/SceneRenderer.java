@@ -18,7 +18,8 @@ public class SceneRenderer {
 
     private boolean drawWireframe = true;
     private boolean drawFilled = false;
-    private boolean useTextureMapping = true;
+    private boolean useTextureMapping = false; // По умолчанию выключено
+    private boolean useLighting = false;       // По умолчанию выключено
 
     private Color wireframeColor = Color.WHITE;
     private Color fillColor = Color.GRAY;
@@ -30,10 +31,6 @@ public class SceneRenderer {
         this.canvas = canvas;
         this.gc = canvas.getGraphicsContext2D();
         this.deletionModeHandler = new DeletionModeHandler();
-    }
-
-    public DeletionModeHandler getDeletionModeHandler() {
-        return deletionModeHandler;
     }
 
     public void clear() {
@@ -56,6 +53,7 @@ public class SceneRenderer {
         int width = (int) canvas.getWidth();
         int height = (int) canvas.getHeight();
 
+        // Общее освещение сцены
         Lighting sceneLighting = new Lighting(
                 camera.getPosition(),
                 camera.getTarget(),
@@ -69,56 +67,63 @@ public class SceneRenderer {
         for (ModelManager.ModelEntry entry : modelManager.getAllModels()) {
             Model model = entry.getModel();
 
-            // Настройка режимов
             RenderingModes modes = new RenderingModes();
             modes.setDrawWireframe(this.drawWireframe);
-            modes.setDrawFilled(this.drawFilled); // Теперь этот метод существует!
+            modes.setDrawFilled(this.drawFilled);
 
-            // Включаем свет только если есть заливка
-            modes.setUseLighting(this.drawFilled);
-
+            // ТЕПЕРЬ СВЕТ И ТЕКСТУРА ЗАВИСЯТ ОТ НАШИХ ПЕРЕМЕННЫХ
+            modes.setUseLighting(this.useLighting);
 
             Texture texture = entry.getTexture();
             modes.setUseTexture(this.useTextureMapping && texture != null);
 
-            // Передаем свет только если заливка включена
-            Lighting activeLighting = this.drawFilled ? sceneLighting : null;
+            // Передаем свет, только если он включен
+            Lighting activeLighting = this.useLighting ? sceneLighting : null;
 
             Matrix4x4 modelMatrix = Matrix4x4.identity();
 
             RenderEngine.render(
-                    gc,
-                    camera,
-                    model,
-                    width,
-                    height,
-                    texture,
-                    activeLighting,
-                    fillColor,
-                    modes,
-                    modelMatrix
+                    gc, camera, model, width, height,
+                    texture, activeLighting, fillColor, modes, modelMatrix
             );
 
-            // Отрисовка выделения (ИСПРАВЛЕНО: renderSelection вместо drawOverlay)
             if (deletionModeHandler.isActive()) {
                 deletionModeHandler.renderSelection(gc, model);
             }
         }
     }
 
-    // --- Геттеры и сеттеры для MainWindow ---
-    public boolean isDrawWireframe() { return drawWireframe; }
+    // --- Сеттеры для связи с MainWindow ---
     public void setDrawWireframe(boolean drawWireframe) { this.drawWireframe = drawWireframe; }
-
-    public boolean isDrawFilled() { return drawFilled; }
     public void setDrawFilled(boolean drawFilled) { this.drawFilled = drawFilled; }
-
-    public void setWireframeColor(Color color) { this.wireframeColor = color; }
-    public void setFillColor(Color color) { this.fillColor = color; }
-    public void setBackgroundColor(Color color) { this.backgroundColor = color; }
 
     public void setUseTextureMapping(boolean useTextureMapping) {
         this.useTextureMapping = useTextureMapping;
+    }
+
+    public void setUseLighting(boolean useLighting) {
+        this.useLighting = useLighting;
+    }
+
+    public void setFillColor(Color color) { this.fillColor = color; }
+    public void setBackgroundColor(Color color) { this.backgroundColor = color; }
+    public DeletionModeHandler getDeletionModeHandler() { return deletionModeHandler; }
+
+    // Геттеры для того, чтобы MainWindow мог узнать текущее состояние режимов
+    public boolean isDrawWireframe() {
+        return drawWireframe;
+    }
+
+    public boolean isDrawFilled() {
+        return drawFilled;
+    }
+
+    public boolean isUseTextureMapping() {
+        return useTextureMapping;
+    }
+
+    public boolean isUseLighting() {
+        return useLighting;
     }
 
     private void drawNoModelMessage() {
